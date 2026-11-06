@@ -227,6 +227,47 @@ main.board-shell .db-frame { min-block-size: calc(100dvh - 1.5rem); }
 .db-due-field .db-due-mount { margin-block: 0.35rem 0.1rem; }
 /* the sprint settings panel's control mount */
 .db-sd-due-mount { margin-block: 0.35rem 0.1rem; }
+/* S245 (spec pack Phase 6 — §13 + Screen J): the deadline row's compact Extend
+   affordance — a hover-revealed ghost glyph at the row's inline end (the row
+   stays one line; keyboard users reach it through focus-visible). Logical
+   properties keep it mirroring in RTL. */
+.db-due-ext {
+  margin-inline-start: auto;
+  display: inline-flex; align-items: center;
+  padding: 0.1rem; border: 0; background: none;
+  color: var(--muted); cursor: pointer; flex: none;
+  opacity: 0; transition: opacity 0.12s ease;
+}
+.db-due-ext .icon { block-size: 13px; inline-size: 13px; }
+.db-due-ext:hover { color: var(--brand); }
+.db-due-ext:focus-visible { opacity: 1; outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.pd-task:hover .db-due-ext, .db-view-body:hover .db-due-ext { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .db-due-ext { transition: none; } }
+/* the task modal's due-field Extend… link (J2/J3's modal anchor) */
+.db-due-ext-link {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  margin-block: 0.25rem 0; font-size: var(--fs-xs);
+  color: var(--brand); padding: 0;
+}
+.db-due-ext-link .icon { block-size: 13px; inline-size: 13px; }
+.db-due-ext-link:hover { text-decoration: underline; }
+/* S245 — the extension dialogs (Screens J1/J2/J3): the four-choice chips (the
+   .db-due-presets recipe), the Custom arm's control mount, the live preview
+   line, and the J3 choice arms' sub-lines. */
+.db-ext-choices { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.db-ext-choice {
+  font: inherit; font-size: var(--fs-xs);
+  color: var(--text); background: var(--card);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 0.15rem 0.55rem; cursor: pointer;
+}
+.db-ext-choice:hover { border-color: var(--brand); color: var(--brand); }
+.db-ext-choice.is-on { border-color: var(--brand); color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, transparent); }
+.db-ext-custom { margin-block: 0.35rem 0; }
+.db-ext-preview { margin: 0; min-block-size: 1.1em; }
+.db-sm-taskline { font-weight: 600; overflow-wrap: anywhere; }
+.db-sm-action-sub { display: block; flex: 1 1 100%; text-align: start; font-size: var(--fs-xs); }
+.db-sm-action { flex-wrap: wrap; }
 
 /* --- task editor modal ----------------------------------------------------- */
 .db-modal {

@@ -1810,6 +1810,12 @@
             acts.push('<button type="button" class="btn ghost small" data-pd-ov-pause>⏸ ' + pdEsc(_t('db.pauseSprint', 'Pause sprint')) + '</button>')
             acts.push('<button type="button" class="btn ghost small" data-pd-ov-finish>⏹ ' + pdEsc(_t('db.finishSprint', 'Finish sprint')) + '</button>')
           }
+          // S245 (Screen J1 — the embedded twin): any NON-COMPLETED sprint with a
+          // deadline gets the Extend action → the shared J1 dialog (the impact
+          // fold rides pdOvRows — the fetched truth, never the capped DOM).
+          if (ovSt !== 'completed' && s.due_at) {
+            acts.push('<button type="button" class="btn ghost small" data-pd-ov-extend>⏱ ' + pdEsc(_t('db.extendSprint', 'Extend')) + '</button>')
+          }
           acts.push('<a class="btn ghost small" data-pd-ov-settings href="/sprint.html?project=' + encodeURIComponent(id) + '&sprint=' + encodeURIComponent(s.id) + '">⚙ ' + pdEsc(_t('db.ov.settings', 'Settings')) + '</a>')
           const ST_LABELS = {
             idea: _t('db.st.idea', 'New Ideas'), bug: _t('db.st.bug', 'Problems'), planned: _t('db.st.planned', 'Plans'),
@@ -1846,14 +1852,16 @@
           document.querySelectorAll('.pd-task-wrap').forEach((w) => {
             if (w.dataset.pdTask) domStatus.set(w.dataset.pdTask, w.dataset.pdStatus || 'idea')
           })
-          return pdTaskTruth.map((t) => ({ sprint_id: t.sprint_id ?? null, status: domStatus.get(t.id) || t.status || 'idea' }))
+          // S245: due_at rides the fold rows too — the J1 impact preview (the
+          // inheritors-vs-overrides counts) reads it on this surface.
+          return pdTaskTruth.map((t) => ({ sprint_id: t.sprint_id ?? null, status: domStatus.get(t.id) || t.status || 'idea', due_at: t.due_at ?? null }))
         }
         // S243 (Screen G): the overview's lifecycle actions — delegated like the bar
         // (the panel is rebuilt inside the swap); the shared stack carries the
         // sprints pool + the accurate fold rows, and onDone = the IN-PLACE bodyRefresh
         // (the archive-done contract, never location.reload).
         ctx.on('click', (e) => {
-          const ovBtn = e.target.closest('[data-pd-ov-start],[data-pd-ov-resume],[data-pd-ov-pause],[data-pd-ov-finish]')
+          const ovBtn = e.target.closest('[data-pd-ov-start],[data-pd-ov-resume],[data-pd-ov-pause],[data-pd-ov-finish],[data-pd-ov-extend]')
           if (!ovBtn) return
           const ov = ovBtn.closest('[data-pd-sprint-ov]')
           const s = ov && ov.dataset.sprintId ? pdSprintTruth.find((x) => x && x.id === ov.dataset.sprintId) : null
@@ -1862,6 +1870,7 @@
           if (ovBtn.matches('[data-pd-ov-start],[data-pd-ov-resume]')) window.HibanaBoard.startSprintWithConflict(s.id, opts)
           else if (ovBtn.matches('[data-pd-ov-pause]')) window.HibanaBoard.confirmSprintPause(s, opts)
           else if (ovBtn.matches('[data-pd-ov-finish]')) window.HibanaBoard.openSprintFinish(s, opts)
+          else if (ovBtn.matches('[data-pd-ov-extend]') && window.HibanaBoard.openSprintDeadlineExtend) window.HibanaBoard.openSprintDeadlineExtend(s, opts)
         })
         const pdFilterBuild = async () => {
           // S32 flake fix (caught by the FA-locale guard under full-suite load): the bar
@@ -1887,7 +1896,18 @@
               // (the server renders at most 5 wraps per column; a lane with 6+ of a
               // sprint's tasks — or a column whose 5 slots other cards fill first —
               // would undercount or omit them entirely).
-              pdTaskTruth = ((data.project ? data.project.devTasks : data.devTasks) || []).map((t) => ({ id: t.id, priority: t.priority || 'medium', sprint_id: t.sprint_id ?? null, status: t.status || 'idea' }))
+              // S245 (spec pack Phase 6): the rows also carry title + due_at + the
+              // additive effective_* triple (the detail pool's devTasks carry them
+              // since S244) — the J1 impact fold (due_at) + the J2/J3 routing
+              // (effective_due_source) + the §13.4 origin ride-along
+              // (effective_due_origin_at) read the fetched truth on THIS surface.
+              pdTaskTruth = ((data.project ? data.project.devTasks : data.devTasks) || []).map((t) => ({
+                id: t.id, priority: t.priority || 'medium', sprint_id: t.sprint_id ?? null, status: t.status || 'idea',
+                title: t.title || '', due_at: t.due_at ?? null,
+                effective_due_at: t.effective_due_at ?? null,
+                effective_due_source: t.effective_due_source ?? null,
+                effective_due_origin_at: t.effective_due_origin_at ?? null,
+              }))
               // S33: the sprint truth (draft detection + deep-link targets).
               pdSprintTruth = (data.project ? data.project.sprints : data.sprints) || []
               if (!pdSdDeepLinked) {
@@ -2989,6 +3009,22 @@
         // S151: set by the touch-drag release — the synthetic click that follows an
         // active drag must not ALSO open the detail slide-over.
         let pdSuppressClickUntil = 0
+        // S245 (spec pack Phase 6 — §13 + Screens J2/J3): the deadline row's Extend
+        // affordance on the embedded board — the shared stack's ROUTER owns the
+        // scope decision (personal → J2; sprint-sourced → J3's CHOICE modal —
+        // never a silent sprint change). The task row comes from pdTaskTruth
+        // (the fetched truth carrying due_at + the effective triple), and the
+        // shared dialogs ride the sprints pool + the accurate fold rows, with
+        // the IN-PLACE bodyRefresh as onDone (the archive-done contract).
+        ctx.on('click', (e) => {
+          const extBtn = e.target.closest('[data-db-extend]')
+          if (!extBtn) return
+          e.preventDefault(); e.stopPropagation()
+          if (!window.HibanaBoard || !window.HibanaBoard.openTaskDeadlineExtend) return
+          const task = pdTaskTruth.find((t) => t.id === extBtn.getAttribute('data-db-extend'))
+          if (!task) return
+          window.HibanaBoard.openTaskDeadlineExtend(task, { sprints: pdSprintTruth, taskRows: pdOvRows(), projectId: id, onDone: bodyRefresh })
+        })
         ctx.on('click', (e) => {
           const task = e.target.closest('.pd-task[role="button"]')
           if (!task) return
@@ -3002,6 +3038,8 @@
           if (e.target.closest('[data-pd-cycle-prio], .pd-tag')) return
           // The pinned-shots button opens its own dialog (S46) — not the panel.
           if (e.target.closest('[data-pd-shots]')) return
+          // S245: the deadline row's Extend affordance routes its own flow above.
+          if (e.target.closest('[data-db-extend]')) return
           const wrap = task.closest('.pd-task-wrap')
           if (!wrap) return
           const tid = wrap.dataset.pdTask
@@ -3273,7 +3311,7 @@
         const ensureBoardLib = (cb) => {
           if (window.HibanaBoard) return cb()
           const s = document.createElement('script')
-          s.src = '/js/devboard.js?v=34'
+          s.src = '/js/devboard.js?v=35'
           s.onload = () => cb()
           s.onerror = () => window.hibana?.toast(_t('sparks.saveFailed', "Couldn't load"), 'err')
           document.head.appendChild(s)
@@ -3377,7 +3415,17 @@
           for (const t of all) {
             pdTierTrack(String(t.id), t.priority || 'medium'); seen.add(String(t.id))
             const truth = pdTaskTruth.find((r) => r.id === String(t.id))
-            if (truth) { truth.status = t.status || 'idea'; truth.sprint_id = t.sprint_id ?? null }
+            // S245: the fresh payload also re-syncs the due fields (the J1 fold +
+            // the J2/J3 routing read them; a raced extension graduates to truth
+            // here, exactly like the status + sprint assignment do).
+            if (truth) {
+              truth.status = t.status || 'idea'; truth.sprint_id = t.sprint_id ?? null
+              truth.title = t.title || ''
+              truth.due_at = t.due_at ?? null
+              truth.effective_due_at = t.effective_due_at ?? null
+              truth.effective_due_source = t.effective_due_source ?? null
+              truth.effective_due_origin_at = t.effective_due_origin_at ?? null
+            }
           }
           for (const row of [...pdTaskTruth]) if (!seen.has(row.id)) pdTierForget(row.id)
           for (const status of statuses) {

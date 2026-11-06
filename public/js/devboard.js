@@ -315,25 +315,38 @@
     if (standalone) return left
     return t('db.ov.due', 'Due {d}').replace('{d}', dueDayLabel(dueMs, lang)) + ' · ' + left
   }
+  /** The Extend affordance's glyph — the same stroke grammar as DUE_ICON: an
+   * outward arrow over a panel edge ("push the deadline out"). Sits at the
+   * deadline row's inline end, hover-revealed (S245 — Screen J). */
+  const EXT_ICON = '<svg class="icon db-due-ext-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>'
   /** Screen A's card grammar — the row + the thin bar. Renders '' when the triple
    * is null (no deadline row, no bar — spec §10's no-deadline scenario). The row
    * carries the calendar-clock icon + the threshold WORD; the bar is decorative
    * (aria-hidden) and direction-locked LTR (§17: time progression stays
-   * left-to-right even in RTL — the CSS owns the exception). */
+   * left-to-right even in RTL — the CSS owns the exception). S245 (§13): the
+   * row's inline end carries the compact Extend affordance (hover-revealed,
+   * keyboard-focusable — data-db-extend; the delegated board handlers route it
+   * personal → J2, sprint-sourced → J3 — never a silent sprint change). */
   const deadlineRowHtml = (task, lang, nowMs) => {
     const state = deadlineStateOf(task, nowMs)
     if (!state) return ''
     const pct = deadlineElapsedPct(task, nowMs)
     const label = deadlineLabel(task, state, nowMs, lang)
-    return '<span class="db-due-row st-' + state + '">' + DUE_ICON + '<span class="db-due-txt" dir="auto">' + esc(label) + '</span></span>' +
+    const extHint = t('db.ext.extendHint', 'Extend deadline')
+    return '<span class="db-due-row st-' + state + '">' + DUE_ICON + '<span class="db-due-txt" dir="auto">' + esc(label) + '</span>' +
+      (task && task.id ? '<button type="button" class="db-due-ext" data-db-extend="' + esc(task.id) + '" title="' + esc(extHint) + '" aria-label="' + esc(extHint) + '">' + EXT_ICON + '</button>' : '') + '</span>' +
       '<span class="db-due-bar" aria-hidden="true"><span class="db-due-fill st-' + state + '" style="width:' + pct + '%"></span></span>'
   }
   /** The row-ONLY variant (no bar) — the S238 read-only task view's meta rows join
-   * the deadline display with the same row grammar, compact for the meta stack. */
+   * the deadline display with the same row grammar, compact for the meta stack.
+   * S245: the view's row carries the Extend affordance too (the kickoff's J2/J3
+   * anchor — same routing as the card row). */
   const deadlineViewHtml = (task, lang, nowMs) => {
     const state = deadlineStateOf(task, nowMs)
     if (!state) return ''
-    return '<span class="db-due-row st-' + state + ' db-due-view">' + DUE_ICON + '<span class="db-due-txt" dir="auto">' + esc(deadlineLabel(task, state, nowMs, lang)) + '</span></span>'
+    const extHint = t('db.ext.extendHint', 'Extend deadline')
+    return '<span class="db-due-row st-' + state + ' db-due-view">' + DUE_ICON + '<span class="db-due-txt" dir="auto">' + esc(deadlineLabel(task, state, nowMs, lang)) + '</span>' +
+      (task && task.id ? '<button type="button" class="db-due-ext" data-db-extend="' + esc(task.id) + '" title="' + esc(extHint) + '" aria-label="' + esc(extHint) + '">' + EXT_ICON + '</button>' : '') + '</span>'
   }
 
   // hibana-sync-status-spec §8/§14: every TASK mutation reports to the per-card
@@ -1190,10 +1203,19 @@
                 .replace('{sprint}', inhName)
                 .replace('{date}', dueDayLabel(Date.parse(inhDate), lang2))
             : ''
+          // S245 (§13 + Screen J2/J3): the Extend… link beside the field — J2's
+          // preset shortcuts for a task that HAS a deadline (personal → J2;
+          // inherited → J3's choice modal). Rendered only for an EXISTING task
+          // with a saved personal deadline or an inherited line (the add-mode
+          // inherited line is a PREVIEW of what a new task would inherit —
+          // nothing to extend yet); the link's wiring closes the editor first
+          // (its draft would go stale against the extended truth).
+          const canExtend = !!(ctlOk && task && (task.due_at || inhDate))
           return '<div class="db-field db-due-field" data-db-due-field>' +
             '<label class="db-sq-toggle"><input type="checkbox" data-db-due-toggle' + (modalCtx.draft.dueOn ? ' checked' : '') + '><span>' + esc(t('db.due.toggleOpt', 'Due date (optional)')) + '</span></label>' +
             '<div class="db-due-mount" data-db-due-mount' + (modalCtx.draft.dueOn ? '' : ' hidden') + '></div>' +
             (inhTxt ? '<p class="db-due-inherited muted small" data-db-due-inherited>' + esc(inhTxt) + '</p>' : '') +
+            (canExtend ? '<button type="button" class="ghost small db-due-ext-link" data-db-due-extend-link>' + EXT_ICON + ' ' + esc(t('db.extendSprint', 'Extend') + '…') + '</button>' : '') +
             '<p class="db-due-err" data-db-due-modal-err role="alert" hidden></p>' +
           '</div>'
         })() +
@@ -1381,6 +1403,21 @@
         modalCtx.draft.dueOn = dueToggle.checked
         if (dueModalErr) { dueModalErr.hidden = true }
         renderModal()
+      }
+    }
+    // S245 (§13 + Screen J2/J3): the due field's Extend… link — closes the
+    // editor WITHOUT saving (an extension is its own dedicated flow; the draft
+    // would go stale against the extended truth) and hands the SAVED task row
+    // to the router (personal → J2's picker; sprint-sourced → J3's choice).
+    // The editor's own onSaved (the caller's board reload) rides along as the
+    // dialog's onDone — the extension is a mutation that needs the re-pull.
+    const dueExtLink = el.querySelector('[data-db-due-extend-link]')
+    if (dueExtLink) {
+      dueExtLink.onclick = () => {
+        const savedTask = modalCtx && modalCtx.taskId ? findTask(modalCtx.taskId) : null
+        const after = modalCtx ? modalCtx.onSaved : null
+        closeModal(false)
+        if (savedTask) openTaskDeadlineExtend(savedTask, { onDone: after })
       }
     }
     // S208: renderModal() rebuilds the whole card — the TITLE textarea is the
@@ -2130,6 +2167,283 @@
     }
   }
 
+  // ------------------------------------------------ deadline extension UI (S245)
+  // Spec pack Phase 6 (§13 + Screens J1/J2/J3): the EXTENSION flows — pure PATCH
+  // orchestration over the EXISTING write surface (contract §12.1/§12.4 — no new
+  // endpoints, no migrations): the sprint-wide arm PATCHes /api/sprints/:id
+  // {due_at} (every inheriting task's server-computed triple re-resolves on the
+  // next payload pull); the task-only arm PATCHes /api/devtasks/:id {due_at}
+  // (value→value PRESERVES due_origin_at server-side — an extension is not a
+  // re-assignment); the INHERITED task-only arm rides the §13.4 origin
+  // ride-along (the additive due_origin_at body field, honored server-side only
+  // on the null→value transition it creates) so the bar keeps the SPRINT's start
+  // point instead of looking newly assigned. The presets ADD TO THE EXISTING
+  // deadline — never to the current moment (§13.1). The impact previews fold the
+  // payload (the S243 pdOvRows doctrine — never the 5-capped DOM). Shared by
+  // every surface (sprint.html, board.html, project.html) through the same
+  // window.HibanaBoard exports (spec §18 — no forking).
+
+  /** §13.1: the preset math — the selected duration ADDS TO THE EXISTING
+   * deadline, never to the current moment. Hour-exact arithmetic (the same
+   * scale the S244 control's own 24/48/72h presets use). */
+  const extendPresetDue = (baseIso, hours) => {
+    const base = Date.parse(baseIso)
+    if (!Number.isFinite(base) || !Number.isFinite(hours) || hours <= 0) return null
+    return new Date(base + hours * 3600000).toISOString()
+  }
+
+  /** §13.2's BEFORE-confirmation impact preview — the §12.5-style client fold
+   * over the loaded payload: tasks with sprint_id === S and due_at == null
+   * INHERIT the deadline and follow the extension; due_at != null are PROTECTED
+   * by personal overrides (any lane/status — the association is the count). */
+  const sprintDeadlineImpact = (sprintId, taskRows) => {
+    const rows = taskRows || state.tasks
+    let inheritors = 0
+    let overrides = 0
+    for (const task of rows) {
+      if (!task || task.sprint_id !== sprintId) continue
+      if (task.due_at == null) inheritors++
+      else overrides++
+    }
+    return { inheritors, overrides }
+  }
+
+  /** The dialogs' current/new deadline line — the S244 render stack's own
+   * wording ('Due Nov 21 · 16 days left' / 'Overdue by 1 day'), so the dialog
+   * and the card read identically. deadlineLabel over a synthetic personal
+   * row (the §12.3 vocabulary; never a re-derivation of anything). */
+  const deadlineSummary = (iso, lang, nowMs) => {
+    const row = { status: '', effective_due_at: iso, effective_due_source: null }
+    return deadlineLabel(row, deadlineStateOf(row, nowMs), nowMs, lang)
+  }
+
+  /** The four §13.1 choices as chips (the .db-due-presets recipe) + the shared
+   * control behind Custom (pre-loaded with the CURRENT value — the user edits
+   * from it, D6). Returns the wiring for a freshly-rendered dialog. */
+  const extChoicesHtml = () => {
+    const chip = (key, label) =>
+      '<button type="button" class="db-ext-choice" data-ext-preset="' + key + '">' + esc(label) + '</button>'
+    return '<div class="db-ext-choices" data-ext-choices role="group" aria-label="' + esc(t('db.ext.choicesLabel', 'Extension choices')) + '">' +
+      chip('24', t('db.ext.p24', '+24 hours')) +
+      chip('48', t('db.ext.p48', '+48 hours')) +
+      chip('72', t('db.ext.p72', '+72 hours')) +
+      chip('custom', t('db.ext.custom', 'Custom date')) +
+      '</div>' +
+      '<div class="db-ext-custom" data-ext-custom hidden></div>' +
+      '<p class="db-ext-preview muted small" data-ext-preview role="status"></p>'
+  }
+
+  /** The one extension-picker dialog every flow shares (J1, J2, J3's task-only
+   * arm): the head (identity + the current deadline line), the four choices,
+   * the live new-deadline preview, the scope lines (impact counts / only-this-
+   * task), the origin note (§13.2/§13.3/§13.4 — "the progress start point is
+   * preserved"), and a Confirm that stays disabled until a choice is made. */
+  function openExtendDialog(cfg) {
+    const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+    const done = cfg.onDone || null // captured up front: an Esc mid-flight must not swallow the reload
+    const el = sprintModal(
+      smHead(cfg.title) +
+      '<div class="db-sprintmod-body">' +
+        cfg.headHtml +
+        extChoicesHtml() +
+        (cfg.scopeHtml || '') +
+        '<p class="db-sm-line db-sm-safe">' + esc(t('db.ext.originNote', 'The progress start point is preserved.')) + '</p>' +
+        '<p class="db-due-err" data-ext-err role="alert" hidden></p>' +
+      '</div>' +
+      smFoot(t('common.cancel', 'Cancel'), 'data-ext-confirm', cfg.confirmLabel || t('db.extendSprint', 'Extend'), false),
+      { onDone: done })
+    smWireCancel(el)
+    const confirmBtn = el.querySelector('[data-ext-confirm]')
+    const previewEl = el.querySelector('[data-ext-preview]')
+    const customMount = el.querySelector('[data-ext-custom]')
+    const errEl = el.querySelector('[data-ext-err]')
+    let sel = null // '24' | '48' | '72' | 'custom'
+    let ctl = null // the shared control instance (Custom arm only)
+    const currentLine = (iso) => esc(t('db.ext.newDeadline', 'New deadline: {d}').replace('{d}', deadlineSummary(iso, lang)))
+    const paintPreview = () => {
+      const chips = el.querySelectorAll('[data-ext-preset]')
+      chips.forEach((c) => { c.classList.toggle('is-on', sel !== null && c.dataset.extPreset === sel) })
+      if (sel === 'custom') {
+        const v = ctl ? ctl.value() : null
+        previewEl.textContent = v ? currentLine(v) : t('db.ext.pickCustom', 'Pick the new date above.')
+      } else if (sel) {
+        previewEl.textContent = currentLine(extendPresetDue(cfg.baseIso, Number(sel)))
+      } else {
+        previewEl.textContent = t('db.ext.pickHint', 'Choose an extension to see the new deadline.')
+      }
+      confirmBtn.disabled = !sel // disabled until a choice is made (a picked Custom rides the control's live value)
+    }
+    el.querySelector('[data-ext-choices]').onclick = (ev) => {
+      const btn = ev.target.closest('[data-ext-preset]')
+      if (!btn) return
+      sel = btn.dataset.extPreset
+      if (errEl) errEl.hidden = true
+      if (sel === 'custom') {
+        if (!ctl && window.HibanaDueControl && window.HibanaDueControl.create) {
+          // D6: the shared Gregorian/Jalali control, PRE-LOADED with the current
+          // value — the user edits from the existing deadline (§13.1 Custom).
+          ctl = window.HibanaDueControl.create({ value: cfg.baseIso })
+          customMount.textContent = ''
+          customMount.appendChild(ctl.el)
+        }
+        customMount.hidden = false
+      } else {
+        customMount.hidden = true
+      }
+      paintPreview()
+    }
+    // the control's own inputs repaint the preview live (delegated change)
+    customMount.addEventListener('change', paintPreview)
+    customMount.addEventListener('input', paintPreview)
+    paintPreview()
+    confirmBtn.onclick = async () => {
+      const newIso = sel === 'custom' ? (ctl ? ctl.value() : null) : (sel ? extendPresetDue(cfg.baseIso, Number(sel)) : null)
+      if (!newIso) {
+        if (errEl) { errEl.textContent = t('db.due.required', 'Pick a date for the deadline, or turn it off.'); errEl.hidden = false }
+        return
+      }
+      confirmBtn.disabled = true
+      try {
+        await cfg.onConfirm(newIso)
+        closeSprintModal()
+        if (done) done()
+      } catch {
+        confirmBtn.disabled = false
+        window.hibana && window.hibana.toast(t('sparks.saveFailed', "Couldn't save"), 'err')
+      }
+    }
+    confirmBtn.focus()
+  }
+
+  /** J1 (§13.2 + Screen J1): the sprint-deadline extension. The presets add to
+   * the EXISTING sprint deadline; the impact preview (inheritors follow /
+   * overrides protected) shows BEFORE the Confirm; the PATCH rides
+   * patchSprint {due_at} — value→value, so the server PRESERVES the sprint's
+   * due_origin_at (§13.2's "do not reset the progress start point"). */
+  function openSprintDeadlineExtend(s, opts) {
+    if (!s || !s.due_at) {
+      // no deadline, no extend — the anchors hide themselves; this is the belt
+      window.hibana && window.hibana.toast(t('db.ext.noDue', 'No deadline to extend yet — set one first.'), 'err')
+      return
+    }
+    const o = opts || {}
+    const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+    const rows = o.taskRows || state.tasks
+    const impact = sprintDeadlineImpact(s.id, rows)
+    openExtendDialog({
+      title: t('db.ext.sprintTitle', 'Extend sprint deadline'),
+      headHtml:
+        smIdentity(s) +
+        '<p class="db-sm-line"><span class="muted small">' + esc(t('db.ext.current', 'Current deadline')) + '</span> <b>' + esc(deadlineSummary(s.due_at, lang)) + '</b></p>',
+      baseIso: s.due_at,
+      scopeHtml:
+        '<p class="db-sm-line">' + esc(t('db.ext.inherit', '{n} tasks inherit this deadline and follow the extension.').replace('{n}', faDig(impact.inheritors))) + '</p>' +
+        '<p class="db-sm-line">' + esc(t('db.ext.protected', '{n} tasks are protected by personal deadlines and stay unchanged.').replace('{n}', faDig(impact.overrides))) + '</p>',
+      onConfirm: async (newIso) => {
+        await patchSprint(s.id, { due_at: newIso }) // value→value — due_origin_at preserved (§13.2)
+        window.hibana && window.hibana.toast(t('db.ext.done', 'Deadline extended'), 'ok')
+      },
+      onDone: o.onDone,
+    })
+  }
+
+  /** J2/J3's task-only picker (§13.3/§13.4 + Screens J2/J3-arm-B): the task's
+   * identity, the current deadline (the personal one, or the INHERITED one the
+   * override will be based on), the four choices, the "only this task changes"
+   * scope line. The personal arm PATCHes value→value (origin preserved by the
+   * server's rule); the inherited arm creates the override null→value riding
+   * the SPRINT's effective_due_origin_at (§13.4's "preserve the inherited
+   * deadline's original progress origin — never make the bar look newly
+   * assigned"). */
+  function openTaskExtendDialog(task, opts) {
+    const o = opts || {}
+    const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+    const personal = task.due_at != null
+    const baseIso = personal ? task.due_at : task.effective_due_at
+    if (!baseIso) return
+    const sprint = personal ? null : (o.sprints || state.sprints).find((x) => x && x.id === task.sprint_id) || null
+    const currentHtml = '<p class="db-sm-line"><span class="muted small">' + esc(t('db.ext.current', 'Current deadline')) + '</span> <b>' + esc(deadlineSummary(baseIso, lang)) + '</b></p>'
+    const headHtml =
+      '<p class="db-sm-line db-sm-taskline" dir="auto">' + esc(String(task.title || '').split('\n')[0]) + '</p>' +
+      currentHtml +
+      (personal ? '' :
+        (sprint ? '<p class="db-sm-line muted small">' + esc(t('db.ext.inheritedBase', 'Inherited from the sprint deadline — the extension becomes this task’s personal deadline.')) + '</p>' : ''))
+    openExtendDialog({
+      title: t('db.ext.taskTitle', 'Extend deadline'),
+      headHtml,
+      baseIso,
+      scopeHtml: '<p class="db-sm-line db-sm-safe">' + esc(t('db.ext.onlyTask', 'Only this task changes.')) + '</p>',
+      onConfirm: async (newIso) => {
+        if (personal) {
+          await patchTask(task.id, { due_at: newIso }) // value→value — origin preserved (§13.3)
+        } else {
+          // §13.4: the override creation rides the SPRINT's origin (the additive
+          // S245 ride-along, honored server-side ONLY on this null→value arm).
+          const body = { due_at: newIso }
+          if (task.effective_due_origin_at) body.due_origin_at = task.effective_due_origin_at
+          await patchTask(task.id, body)
+        }
+        window.hibana && window.hibana.toast(t('db.ext.done', 'Deadline extended'), 'ok')
+      },
+      onDone: o.onDone,
+    })
+  }
+
+  /** J3 (§13.4 + Screen J3): the INHERITED-deadline extension CHOICE — two
+   * clearly distinct paths with the scope visible BEFORE confirmation, so a
+   * task-only intent can never silently move the sprint. The sprint-wide arm
+   * reuses J1 (with its full impact preview); the task-only arm opens the
+   * picker based on the CURRENT INHERITED deadline. */
+  function openInheritedExtendChoice(task, opts) {
+    const o = opts || {}
+    const lang = window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en'
+    const pool = o.sprints || state.sprints
+    const rows = o.taskRows || state.tasks
+    const sprint = pool.find((x) => x && x.id === task.sprint_id) || null
+    if (!sprint || !sprint.due_at) return
+    const impact = sprintDeadlineImpact(sprint.id, rows)
+    const el = sprintModal(
+      smHead(t('db.ext.choiceTitle', 'Extend this deadline')) +
+      '<div class="db-sprintmod-body">' +
+        '<p class="db-sm-line db-sm-taskline" dir="auto">' + esc(String(task.title || '').split('\n')[0]) + '</p>' +
+        '<p class="db-sm-line muted small">' + esc(t('db.ext.inherits', 'This task inherits the sprint deadline:')) + '</p>' +
+        smIdentity(sprint) +
+        '<p class="db-sm-line"><span class="muted small">' + esc(t('db.ext.current', 'Current deadline')) + '</span> <b>' + esc(deadlineSummary(task.effective_due_at, lang)) + '</b></p>' +
+        '<button type="button" class="db-sm-action" data-ext-arm-sprint>' +
+          '<span aria-hidden="true">⏱</span> ' + esc(t('db.ext.choiceSprint', 'Extend sprint deadline')) +
+          '<span class="db-sm-action-sub muted small">' + esc(t('db.ext.choiceSprintSub', 'Moves every task inheriting it — {n} follow, {m} protected.').replace('{n}', faDig(impact.inheritors)).replace('{m}', faDig(impact.overrides))) + '</span>' +
+        '</button>' +
+        '<button type="button" class="db-sm-action" data-ext-arm-task>' +
+          '<span aria-hidden="true">⏱</span> ' + esc(t('db.ext.choiceTask', 'Extend this task only')) +
+          '<span class="db-sm-action-sub muted small">' + esc(t('db.ext.choiceTaskSub', 'Creates a personal deadline for this task, based on the inherited one. Other tasks stay unchanged.')) + '</span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="row spread db-modal-foot"><span class="muted small"></span>' +
+        '<div class="row" style="gap:.5rem"><button type="button" class="ghost" data-sm-cancel>' + esc(t('common.cancel', 'Cancel')) + '</button></div>' +
+      '</div>',
+      { onDone: o.onDone || null })
+    smWireCancel(el)
+    el.querySelector('[data-ext-arm-sprint]').onclick = () => {
+      closeSprintModal()
+      openSprintDeadlineExtend(sprint, o) // the J1 dialog with its full impact preview
+    }
+    el.querySelector('[data-ext-arm-task]').onclick = () => {
+      closeSprintModal()
+      openTaskExtendDialog(task, o)
+    }
+    el.querySelector('[data-ext-arm-sprint]').focus()
+  }
+
+  /** The Extend affordance's ROUTER (the card row / task view / modal link all
+   * land here): a PERSONAL deadline (due_at set) → J2; a sprint-sourced
+   * inherited deadline (effective_due_source === 'sprint') → J3's choice; no
+   * effective deadline → nothing (no deadline, no extend). */
+  function openTaskDeadlineExtend(task, opts) {
+    if (!task) return
+    if (task.due_at != null) { openTaskExtendDialog(task, opts); return }
+    if (task.effective_due_source === 'sprint' && task.effective_due_at) { openInheritedExtendChoice(task, opts); return }
+  }
+
   // ---------------------------------------------------------------- label manager
   // S30 batch 4 (user request — "rename/merge/recolor/delete-unused tags, powered by
   // fixing B2"): a dialog listing every user tag with its LIVE usage_count. Row actions:
@@ -2372,6 +2686,14 @@
     // effective_due_origin_at — never re-derived), and the card row + bar grammar.
     // Exported so board-page.js AND project-page.js render identically (§18).
     deadlineStateOf, deadlineElapsedPct, deadlineRowHtml, deadlineViewHtml,
+    // S245 (spec pack Phase 6 — §13 + Screens J1/J2/J3): the deadline EXTENSION
+    // stack — the preset math (§13.1: add to the EXISTING deadline, never now),
+    // the §13.2 impact fold (inheritors follow / overrides protected — the
+    // §12.5-style payload fold), and the three flows' entry points (J1 the
+    // sprint-wide dialog, the J2/J3 router that opens the task picker or the
+    // inherited CHOICE modal — never a silent sprint change). Exported so
+    // sprint.html, board.html and project.html share ONE implementation (§18).
+    extendPresetDue, sprintDeadlineImpact, openSprintDeadlineExtend, openTaskDeadlineExtend,
     openSprintFinish, openSprintDelete, openSprintConflict,
     startSprintWithConflict, confirmSprintPause, reopenSprintFlow,
     openEditor, openTaskShots, // S208: the pinned-pictures dialog (the card badge)

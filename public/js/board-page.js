@@ -548,6 +548,14 @@
               acts.push('<button type="button" class="btn ghost small" data-db-ov-pause>⏸ ' + B().esc(_t('db.pauseSprint', 'Pause sprint')) + '</button>')
               acts.push('<button type="button" class="btn ghost small" data-db-ov-finish>⏹ ' + B().esc(_t('db.finishSprint', 'Finish sprint')) + '</button>')
             }
+            // S245 (spec pack Phase 6 — §13.2 + Screen J1): the overview's Extend
+            // affordance — any NON-COMPLETED sprint carrying a deadline (a
+            // completed sprint's deadline is historical, §10.3 — no extension).
+            // Opens the shared J1 dialog (identity + current deadline + the four
+            // choices + the BEFORE-confirmation impact counts).
+            if (ovSt !== 'completed' && ovSprint.due_at) {
+              acts.push('<button type="button" class="btn ghost small" data-db-ov-extend>⏱ ' + B().esc(_t('db.extendSprint', 'Extend')) + '</button>')
+            }
             acts.push('<a class="btn ghost small" data-db-ov-settings href="/sprint.html?project=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(ovSprint.id) + '">⚙ ' + B().esc(_t('db.ov.settings', 'Settings')) + '</a>')
             sprintOvHtml =
               '<div class="db-sprint-ov" data-db-sprint-ov data-sprint-id="' + B().esc(ovSprint.id) + '">' +
@@ -1303,6 +1311,20 @@
             B().openTaskShots(badge.getAttribute('data-db-shots-dialog'), { onChanged: reload })
             return
           }
+          // S245 (spec pack Phase 6 — §13 + Screens J2/J3): the deadline row's Extend
+          // affordance — the shared stack's ROUTER owns the scope decision (a
+          // personal deadline → J2's picker; a sprint-sourced row → J3's CHOICE
+          // modal — never a silent sprint change); no effective deadline → nothing.
+          // Runs BEFORE the card-click→view branch below (the button lives INSIDE
+          // [data-task-card]; ctx.on handlers are separate document-level listeners
+          // — an early return is the only shield, the moreBtn badge precedent).
+          const extBtn = e.target.closest('[data-db-extend]')
+          if (extBtn) {
+            e.preventDefault(); e.stopPropagation()
+            const task = B().findTask(extBtn.getAttribute('data-db-extend'))
+            if (task && B().openTaskDeadlineExtend) B().openTaskDeadlineExtend(task, { onDone: reload })
+            return
+          }
           // S238: the sheet's one-tap per-row copy — the RAW full definition (the ⋯
           // menu's Copy contract without opening the menu; data-raw-title first,
           // the loaded task as the belt).
@@ -1324,11 +1346,12 @@
           // S238: a card click OPENS THE TASK — the read-only view modal. The
           // editor opens only from the ⋯ menu's Edit / the view's Edit button
           // (the project page's S149 contract, brought to the board). The
-          // exclusion list keeps its S30/S208 shape: the prio banner cycles, the
-          // label chips filter, the ⋯ menu (and the sheet's copy button inside
-          // it) own their actions, the pin badge opens its own dialog — none of
-          // them open the view either.
-          if (card && !e.target.closest('[data-task-read-more]') && !e.target.closest('[data-db-cycle-prio]') && !e.target.closest('.pd-tag') && !e.target.closest('.db-card-menu') && !e.target.closest('[data-db-shots-dialog]')) openTaskView(card.dataset.taskCard, card.querySelector('.pd-task'))
+          // exclusion list keeps its S30/S208/S245 shape: the prio banner cycles,
+          // the label chips filter, the ⋯ menu (and the sheet's copy button inside
+          // it) own their actions, the pin badge opens its own dialog, the
+          // deadline row's Extend affordance routes its own flow — none of them
+          // open the view either.
+          if (card && !e.target.closest('[data-task-read-more]') && !e.target.closest('[data-db-cycle-prio]') && !e.target.closest('.pd-tag') && !e.target.closest('.db-card-menu') && !e.target.closest('[data-db-shots-dialog]') && !e.target.closest('[data-db-extend]')) openTaskView(card.dataset.taskCard, card.querySelector('.pd-task'))
 
           // Item 8 + S30 batch 2: per-column Quick Copy + Export Markdown — the bullets
           // now carry priority + labels ("- [URGENT] Fix auth leak #UI/UX #Security") and
@@ -1587,6 +1610,10 @@
           if (e.target.closest('[data-db-ov-resume]')) { B().startSprintWithConflict(s.id, { onDone: reload }); return }
           if (e.target.closest('[data-db-ov-pause]')) { B().confirmSprintPause(s, { onDone: reload }); return }
           if (e.target.closest('[data-db-ov-finish]')) { B().openSprintFinish(s, { onDone: reload }); return }
+          // S245 (Screen J1): the overview's Extend action — the shared J1 dialog
+          // (the /kanban twin folds state.tasks for the impact preview; the
+          // reload re-pulls so the moved deadline + the inheritors re-render).
+          if (e.target.closest('[data-db-ov-extend]')) { if (B().openSprintDeadlineExtend) B().openSprintDeadlineExtend(s, { onDone: reload }); return }
           // data-db-ov-settings is an <a href> — the browser navigates; no handler.
         })
 
@@ -1623,7 +1650,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=34') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=35') // keep in sync with the <head> tag + sw SHELL
               if (!window.HibanaFocusCore) inject('/js/focus-core.js?v=2') // S237/S238: the focus + view decision core — keep in sync with the <head> tag
               if (!window.HibanaChips) inject('/js/chip-render.js?v=13') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA

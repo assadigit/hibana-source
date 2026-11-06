@@ -79,6 +79,17 @@ const updateDevTaskSchema = z.object({
   // re-add starts a fresh timeline). The rules run in the handler (they need the
   // stored row), not in zod.
   due_at: isoDate.nullable().optional(),
+  // S245 (spec pack Phase 6 — §13.4, the inherited-extension ORIGIN RIDE-ALONG):
+  // the task-only extension of an INHERITED deadline creates a personal override
+  // (null→value), which by the rule above would stamp due_origin_at = now and make
+  // the bar look newly assigned — §13.4 instead demands the SPRINT's original
+  // progress origin ride along ("preserve the inherited deadline's original
+  // progress origin"). This ADDITIVE optional field is honored ONLY when it
+  // accompanies a null→value transition; every other case (value→value, value→null,
+  // or sent alone) ignores it — the origin rules above stay the single truth.
+  // Island-transparent (the desktop Go decode ignores unknown keys); the kickoff's
+  // recorded decision over a server special-case (contract §12.2/§12.4 document it).
+  due_origin_at: isoDate.optional(),
   // Replace-set semantics: an array makes the link set EXACTLY these names ([] clears);
   // omitted leaves tags untouched. Never a dev_tasks column — special-cased below.
   tags: z.array(z.string().trim().min(1).max(48)).max(12).optional(),
@@ -335,8 +346,10 @@ export function devboardRoutes(cfg: Config) {
     // tags is NOT a dev_tasks column (replace-set semantics on dev_task_tags) — pull it
     // out BEFORE the generic SET builder, or the loop below would emit SET tags = ?
     // and 500 with "no such column". due_at rides the same special-case road (its
-    // origin column is server-derived, never body-driven).
-    const { tags: tagNames, due_at: dueAt, ...columns } = body
+    // origin column is server-derived, never body-driven) and due_origin_at rides
+    // WITH it (the S245 §13.4 ride-along — server-derived except the one sanctioned
+    // null→value transition, below).
+    const { tags: tagNames, due_at: dueAt, due_origin_at: dueOriginAt, ...columns } = body
     const sets: string[] = []
     const params: unknown[] = []
     // start_at/end_at (0030 clip trims) ride this same generic path as category_id/
@@ -364,6 +377,9 @@ export function devboardRoutes(cfg: Config) {
     // value→different value PRESERVES the origin (an extension is not a re-assignment);
     // value→null CLEARS both (a later re-add starts a fresh timeline). value→same value
     // falls through the same branch as an edit — origin untouched.
+    // S245 (§13.4): the null→value arm honors the client's due_origin_at ride-along
+    // when one is sent (the J3 task-only-from-inherited flow preserving the SPRINT's
+    // origin); without one it stamps now, exactly as before.
     if (dueAt !== undefined) {
       sets.push('due_at = ?')
       params.push(dueAt)
@@ -372,7 +388,7 @@ export function devboardRoutes(cfg: Config) {
         params.push(null)
       } else if (task.due_at == null) {
         sets.push('due_origin_at = ?')
-        params.push(now)
+        params.push(dueOriginAt ?? now)
       }
     }
     if (!sets.length && tagNames === undefined) return c.json({ ok: true })

@@ -481,6 +481,24 @@ first assignment, preserved on edits/extensions, cleared with `due_at`; re-addin
 fresh timeline). Origin rules run on create + PATCH (task) and create + PATCH (sprint):
 null→value stamps, value→value preserves, value→null clears both.
 
+**S245 (Phase 6 — §13.4) addition — the `due_origin_at` ride-along on the task PATCH:**
+`PATCH /api/devtasks/:id` additionally accepts an optional `due_origin_at` body field
+(validated ISO), honored ONLY when it accompanies a `due_at` null→value transition: the
+client-sent instant is stamped instead of `now`. This is the mechanism behind the
+inherited-deadline extension's task-only arm (spec §13.4): the override the arm creates
+must "preserve the inherited deadline's original progress origin rather than making the
+bar look newly assigned", so the J3 flow sends the sprint's `effective_due_origin_at`
+along with the computed override value. Every other case IGNORES the field — value→value
+still preserves the task's own stored origin (an extension is not a re-assignment),
+value→null still clears both, and a body sending it without `due_at` is a no-op for it.
+Additive + island-transparent (a Go struct decode ignores the key); the alternative — a
+server special-case sniffing sprint inheritance inside the PATCH — was rejected because
+it would fork the origin rules away from the body-driven write surface. Extension flows
+are otherwise pure PATCH orchestration: the presets ADD TO THE EXISTING `due_at` (never
+to the current moment — §13.1), and `PATCH /api/sprints/:id {due_at}` is the sprint-wide
+arm (every inheriting task follows on the next payload pull; value→value preserves the
+sprint's own origin).
+
 **Effective deadline (S241 — the documented Phase 2 decision: computed SERVER-side, as
 additive fields on the board payload's task rows):**
 
@@ -537,7 +555,9 @@ it dangling-free; a lagging pre-0065 D1 serves `[]` (the categories belt precede
   = the legacy draft/open auto-assign** (kept for old clients until the Phase 3 client fix
   — D2); NEW assignment to a completed sprint → **400 `sprint_completed`**.
 - **PATCH `/api/devtasks/:id`** additionally accepts `due_at` (same origin rules,
-  special-cased like `tags`); MOVING a task to a completed sprint → 400 `sprint_completed`;
+  special-cased like `tags`) and, since S245, the optional `due_origin_at` ride-along
+  (§12.2 above — honored only on a `due_at` null→value transition, ignored otherwise);
+  MOVING a task to a completed sprint → 400 `sprint_completed`;
   re-asserting the task's CURRENT sprint stays legal (the old Edit modal resends fields
   verbatim). planned/active/paused targets all assignable (assumption 3: paused allowed).
 

@@ -359,7 +359,15 @@ export function detailHtml(p: ProjectRow, d: Awaited<ReturnType<typeof loadDetai
       else if (standalone) label = left
       else label = `${trL(lang, 'Due {d}', 'مهلت {d}', { d: dueDayLabel(dueMs, lang) })} · ${left}`
     }
-    return `<span class="db-due-row st-${state}">${DUE_ICON}<span class="db-due-txt" dir="auto">${esc(label)}</span></span>` +
+    // S245 (spec pack Phase 6 — §13): the row's inline end carries the compact
+    // Extend affordance, byte-identical to devboard.js's client twin (the S209
+    // parity contract) — data-db-extend routes personal → J2, sprint-sourced →
+    // J3 through project-page.js's delegated handler.
+    const extHint = trL(lang, 'Extend deadline', 'تمدید مهلت')
+    const extBtn = t.id
+      ? `<button type="button" class="db-due-ext" data-db-extend="${esc(t.id)}" title="${esc(extHint)}" aria-label="${esc(extHint)}"><svg class="icon db-due-ext-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button>`
+      : ''
+    return `<span class="db-due-row st-${state}">${DUE_ICON}<span class="db-due-txt" dir="auto">${esc(label)}</span>${extBtn}</span>` +
       `<span class="db-due-bar" aria-hidden="true"><span class="db-due-fill st-${state}" style="width:${pct}%"></span></span>`
   }
   // S152 (block 6): the task's category as a small colored chip DIRECTLY ABOVE the

@@ -310,9 +310,12 @@ describe('S243 — the compact Kanban overview (Screen G) on BOTH board surfaces
       // past the MAX_VISIBLE=5-per-column render cap) with the DOM wraps' live
       // statuses overriding (a drag patches data-pd-status in place, no refresh)
       'const pdOvRows = () => {',
-      "return pdTaskTruth.map((t) => ({ sprint_id: t.sprint_id ?? null, status: domStatus.get(t.id) || t.status || 'idea' }))",
+      // S245 moved the fold's row shape: due_at joined sprint_id + status (the J1
+      // impact preview reads it) — the pin moves with it, the intent unchanged:
+      // the rows are still the FETCHED truth + the DOM's live statuses
+      "return pdTaskTruth.map((t) => ({ sprint_id: t.sprint_id ?? null, status: domStatus.get(t.id) || t.status || 'idea', due_at: t.due_at ?? null }))",
       // the fetched truth carries sprint_id + status (the fold's source)
-      "sprint_id: t.sprint_id ?? null, status: t.status || 'idea'",
+      "sprint_id: t.sprint_id ?? null, status: t.status || 'idea',",
       // the shared stack carries the sprints pool + rows + projectId (state is NOT loaded here)
       'const opts = { sprints: pdSprintTruth, taskRows: pdOvRows(), projectId: id, onDone: bodyRefresh }',
       // the panel refreshes with the filter state on every apply
@@ -402,14 +405,13 @@ describe('S243 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(4)
   })
 
-  it('sw.js is at hibana-v456 with the S244 carrier note (the deadline round moved the ladder)', () => {
+  it('sw.js is at hibana-v457 with the S245 carrier note (the extension round moved the ladder; the pin intent is preserved, the carriers moved with it)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v456"')).toBe(true)
-    expect(sw.includes('// v456 (S244)')).toBe(true)
-    // the carrier bumps the note records (S244's round: due-control.js v1 NEW,
-    // devboard v34, the i18n-fa v102 injector literal)
-    expect(sw).toMatch(/devboard\.js v34/)
-    expect(sw).toMatch(/i18n-fa\.js\?v=102/)
-    expect(sw).toMatch(/due-control\.js v1/)
+    expect(sw.includes('const VERSION = "hibana-v457"')).toBe(true)
+    expect(sw.includes('// v457 (S245)')).toBe(true)
+    // the carrier bumps the note records (S245's round: devboard v35, board-page v32,
+    // project-page v83, sprint-page v26, the i18n-fa v103 injector literal)
+    expect(sw).toMatch(/devboard\.js v35/)
+    expect(sw).toMatch(/i18n-fa\.js\?v=103/)
   })
 })

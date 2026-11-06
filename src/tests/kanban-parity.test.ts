@@ -282,11 +282,21 @@ describe('kanban 1:1 parity — the embedded board fragment (S209)', () => {
       expect(barAt).toBeGreaterThan(rowAt)
       expect(metaAt).toBeGreaterThan(barAt)
 
+      // S245 (spec pack Phase 6 — §13 + Screens J2/J3): the deadline row carries
+      // the compact EXTEND AFFORDANCE at its inline end — the byte-identical
+      // button both renderers ship (data-db-extend routes through the page's
+      // delegated handler: personal → J2, sprint-sourced → J3's choice modal).
+      // The button sits INSIDE the row, before the bar (the parity pin: same
+      // grammar, same glyph, same routing attribute).
+      expect(pBody).toMatch(new RegExp(`<button type="button" class="db-due-ext" data-db-extend="${personalId}" title="Extend deadline" aria-label="Extend deadline"><svg class="icon db-due-ext-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></button>`))
+      expect(iBody).toMatch(new RegExp(`class="db-due-ext" data-db-extend="${inheritedId}"`))
+
       // a task without a deadline renders NEITHER the row nor the bar (§10)
       const plainWrap = html.match(new RegExp(`data-pd-task="${plainId}"[\\s\\S]*?<span class="pd-task-body">([\\s\\S]*?)</span>\\s*</div>\\s*</div>`))
       expect(plainWrap).toBeTruthy()
       expect(plainWrap![1]).not.toContain('db-due-row')
       expect(plainWrap![1]).not.toContain('db-due-bar')
+      expect(plainWrap![1]).not.toContain('db-due-ext') // S245: no deadline, no extend affordance either
     } finally {
       close()
     }

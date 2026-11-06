@@ -208,7 +208,10 @@ describe('S244 — the card deadline row + bar: the triple-consumption (NO re-de
     expect(ts).toContain('...effectiveDeadlineOf(t, t.sprint_id != null ? sprintBy.get(t.sprint_id) : null)')
     // the twin renders the byte-identical grammar after the sprint badge
     expect(ts).toContain('${sprintBadgeHtml(t.sprint_id)}\n                    ${deadlineRowHtml(t)}')
-    expect(ts).toContain('`<span class="db-due-row st-${state}">${DUE_ICON}<span class="db-due-txt" dir="auto">${esc(label)}</span></span>`')
+    // S245 moved the row's closing: the Extend affordance (${extBtn}) joined the
+    // txt span inside the row (Screens J2/J3) — the pin moves with it, the row
+    // grammar + the LTR-locked bar below are unchanged
+    expect(ts).toContain('`<span class="db-due-row st-${state}">${DUE_ICON}<span class="db-due-txt" dir="auto">${esc(label)}</span>${extBtn}</span>`')
   })
 
   it('project-page.js: the repaint twin reads the SAME triple from the detail payload (the third renderer)', () => {
@@ -403,12 +406,12 @@ describe('S244 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     expect((readPublic('js/due-control.js').match(/\bhibanaFetch\(/g) || []).length).toBe(0)
   })
 
-  it('sw.js is at hibana-v456 with the S244 carrier note (due-control.js v1 NEW + the moved carriers)', () => {
+  it('sw.js is at hibana-v457 with the S245 carrier note (the extension round moved the ladder; the S244 pin intent is preserved, the carriers moved with it)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v456"')).toBe(true)
-    expect(sw.includes('// v456 (S244)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v457"')).toBe(true)
+    expect(sw.includes('// v457 (S245)')).toBe(true)
     expect(sw).toMatch(/due-control\.js v1 \(NEW tag on board\+sprint\)/)
-    expect(sw).toMatch(/devboard\.js v34/)
-    expect(sw).toMatch(/i18n-fa\.js\?v=102/)
+    expect(sw).toMatch(/devboard\.js v35/)
+    expect(sw).toMatch(/i18n-fa\.js\?v=103/)
   })
 })

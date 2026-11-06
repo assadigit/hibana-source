@@ -802,7 +802,12 @@
                 '<div class="db-sd-due-mount" data-sd-due-mount' + (s.due_at ? '' : ' hidden') + '></div>' +
                 '<p class="sp-detail-due muted small" data-sd-due-ro>' + (s.due_at
                   ? B().esc(_t('db.ov.due', 'Due {d}').replace('{d}', new Date(s.due_at).toLocaleDateString(document.documentElement.lang === 'fa' ? 'fa-IR' : 'en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })))
-                  : B().esc(_t('sp.noDue', 'No due date yet.'))) + '</p></div>' +
+                  : B().esc(_t('sp.noDue', 'No due date yet.'))) + '</p>' +
+                // S245 (Screen J1 — the settings seat): the Extend… link beside
+                // the due control opens the J1 dialog (the quick preset
+                // shortcuts over the manual control edit; the control stays the
+                // free-form editor). Only when a deadline exists.
+                (s.due_at ? '<button type="button" class="ghost small db-due-ext-link" data-sd-extend>' + B().esc(_t('db.extendSprint', 'Extend') + '…') + '</button>' : '') + '</div>' +
               '<a class="btn ghost small sp-detail-plan" href="/project.html?id=' + encodeURIComponent(projectId) + '&sprint=' + encodeURIComponent(s.id) + '">' + B().esc(_t('sprint.plan', 'Plan')) + ' — ' + B().esc(_t('sp.openPlanEditor', 'the full-screen plan editor')) + '</a>' +
               '<p class="muted small sp-detail-plan-note">' + B().esc(_t('sp.planNote', 'The rich description lives in the plan editor.')) + '</p>' +
               '<p class="sp-detail-err" data-sd-error role="alert" hidden></p>' +
@@ -848,6 +853,18 @@
               }
             }
             const errEl = body.querySelector('[data-sd-error]')
+            // S245 (Screen J1): the settings panel's Extend… link — closes the
+            // detail panel first (its form state is a settings-edit draft, not an
+            // extension), then hands the sprint row to the shared J1 dialog
+            // (onDone = the page's reload).
+            const sdExtBtn = body.querySelector('[data-sd-extend]')
+            if (sdExtBtn) {
+              sdExtBtn.onclick = () => {
+                const row = B().findSprint(s.id) || s
+                closeSprintDetail()
+                if (B().openSprintDeadlineExtend) B().openSprintDeadlineExtend(row, { onDone: reload })
+              }
+            }
             const saveBtn = body.querySelector('[data-sd-save]')
             saveBtn.onclick = async () => {
               const nameVal = (body.querySelector('[data-sd-name]').value || '').trim()
@@ -1238,8 +1255,17 @@
                 '<button type="button" class="btn small" data-sp-save>' + B().esc(_t('common.save', 'Save')) + '</button>' +
                 (stx === 'active'
                   ? '<button type="button" class="btn ghost small" data-sp-pause>' + B().esc(_t('db.pauseSprint', 'Pause sprint')) + '</button>' +
-                    '<button type="button" class="btn ghost small" data-sp-finish>' + B().esc(_t('db.finishSprint', 'Finish sprint')) + '</button>' +
-                    '<button type="button" class="btn ghost small" data-sp-extend>' + B().esc(_t('db.extendSprint', 'Extend')) + '</button>'
+                    '<button type="button" class="btn ghost small" data-sp-finish>' + B().esc(_t('db.finishSprint', 'Finish sprint')) + '</button>'
+                  : '') +
+                // S245 (spec pack Phase 6 — §13.2 + Screen J1): the popover's
+                // Extend label now wires to the J1 DEADLINE extension dialog
+                // (the S48p window.prompt ended_at flow is RETIRED — the same
+                // supersession treatment the S244 round gave the interim UTC
+                // parse). Shown for a NON-COMPLETED sprint carrying a due date;
+                // a sprint without a deadline has nothing to extend (the
+                // settings panel owns setting one).
+                ((stx === 'active' || stx === 'paused') && s.due_at
+                  ? '<button type="button" class="btn ghost small" data-sp-extend>' + B().esc(_t('db.extendSprint', 'Extend')) + '</button>'
                   : '') +
                 (stx === 'paused'
                   ? '<button type="button" class="btn ghost small" data-sp-resume>' + B().esc(_t('db.resumeSprint', 'Resume')) + '</button>'
@@ -1306,19 +1332,18 @@
             if (s) B().openSprintDelete(s, { projectId: projectId, onDone: reload })
             return
           }
+          // S245 (Screen J1): Extend now opens the shared sprint-DEADLINE extension
+          // dialog (identity + current deadline + the four §13.1 choices + the
+          // BEFORE-confirmation impact counts); the presets add to the EXISTING
+          // deadline and the PATCH preserves due_origin_at (value→value — §13.2).
+          if (spBtn.matches('[data-sp-extend]')) {
+            const s = B().findSprint(id)
+            closeSprintPop()
+            if (s && B().openSprintDeadlineExtend) B().openSprintDeadlineExtend(s, { onDone: reload })
+            return
+          }
           try {
             if (spBtn.matches('[data-sp-save]')) await B().renameSprint(id, sprintPop.querySelector('[data-sp-rename]').value.trim())
-            // S48p: extend sprint — prompt for days, PATCH ended_at = current_end + days
-            if (spBtn.matches('[data-sp-extend]')) {
-              const daysStr = window.prompt(_t('db.extendPrompt', 'Extend by how many days?'))
-              const days = parseInt(daysStr, 10)
-              if (!Number.isFinite(days) || days <= 0) return
-              const sprint = B().state.sprints.find((s) => s.id === id)
-              if (!sprint) return
-              const currentEnd = sprint.ended_at ? new Date(sprint.ended_at) : new Date()
-              const newEnd = new Date(currentEnd.getTime() + days * 86400000)
-              await B().patchSprint(id, { ended_at: newEnd.toISOString() })
-            }
             closeSprintPop()
             await reload()
           } catch { window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
@@ -1785,7 +1810,7 @@
             if (window.HibanaBoard) return resolve(true)
             if (!injected && waited >= 1200) {
               injected = true
-              inject('/js/devboard.js?v=34') // keep in sync with the <head> tag + sw SHELL
+              inject('/js/devboard.js?v=35') // keep in sync with the <head> tag + sw SHELL
               if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
             }
             if (waited >= 9000) return resolve(false)

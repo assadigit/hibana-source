@@ -208,9 +208,14 @@ test('§24-6 — the SAME instant displays both ways: the EN card row and the FA
   await boardReady(page)
   const enRow = page.locator(`.pd-task-wrap[data-task-card="${seed.sameInstant}"] .db-due-row`)
   await expect(enRow).toBeVisible({ timeout: 10_000 })
-  // 2026-11-21T12:00Z is 15 days out from 2026-11-06 → 'Due Nov 21 · 15 days left'
+  // 2026-11-21T12:00Z → 'Due Nov 21 · N days left' — the day NAME is the fixed
+  // instant's (deterministic); the DAYS-LEFT is DERIVED (the S250 fix: the count
+  // was hardcoded '15' from the round's own 2026-11-06 run and broke overnight —
+  // a fixed instant decays one day per day). Re-pin the whole test after the
+  // instant passes (Nov 21 2026 → Overdue).
+  const daysLeft = Math.ceil((Date.parse('2026-11-21T12:00:00.000Z') - Date.now()) / 86_400_000)
   await expect(enRow).toContainText('Nov 21')
-  await expect(enRow).toContainText('15 days left')
+  await expect(enRow).toContainText(daysLeft + ' days left')
 
   // …and the FA board names the SAME instant's day in Jalali (the vendored
   // converter is the one truth — one underlying millisecond, two spellings)
@@ -225,9 +230,11 @@ test('§24-6 — the SAME instant displays both ways: the EN card row and the FA
   const faRow = page.locator(`.pd-task-wrap[data-task-card="${faSeed.sameInstant}"] .db-due-row`)
   await expect(faRow).toBeVisible({ timeout: 10_000 })
   // 1405/08/30 — the SAME day as Nov 21 2026, in the Jalali calendar, in
-  // Persian digits; the left-days count is the same 15 (۱۵ روز مانده)
+  // Persian digits; the left-days count is the SAME derived N in Persian digits
+  // (the S250 fix — was hardcoded ۱۵)
+  const faDig = (n: number) => String(n).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)])
   await expect(faRow).toContainText('۳۰ آبان')
-  await expect(faRow).toContainText('۱۵ روز مانده')
+  await expect(faRow).toContainText(faDig(daysLeft) + ' روز مانده')
   expect(errors).toEqual([])
 })
 

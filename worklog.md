@@ -517,3 +517,46 @@ Strategies strip sits between the toolbar and the draft panel; define "Make webs
 seen" (priority High), then ◆ Define sprint "SEO" with the strategy selected — the card's
 roll-up + the ▸ line follow; try completing the strategy while its sprint runs (the named
 409); the desktop app auto-updates to 0.1.39 on the next check.
+
+## Session S251 — the Projects-section audit + the phased remediation spec (2026-11-07)
+
+**The owner's ask, verbatim:** "Do a full audit of the kanban + sprint + strategies and overall
+Projects section and anything that belongs to it for: 1. Performance optimization 2. Database health
+and optimization 3. Codebase health and modularization and anything that can increase performance
+and improve UI/UX." — then: "Ok you have all approval of me to do this in phases. (multiple
+sessions)" with the RED LINE: the DB must never be lost (back it up — sensitive data).
+
+**Phase 0 (safety baseline) — DONE in this session:**
+- Fresh full SQL dumps of BOTH D1s (`scripts/d1-dump-tables.mjs`) → `/home/z/hibana-backups/
+  pre-audit-{dev,prod}-20261108.sql` + manifests. Restore VERIFIED (loads clean with
+  `PRAGMA foreign_keys=OFF` — the dump's table order ignores the new `sprints.strategy_id` FK
+  dependency; integrity_check ok; row counts verified). Raw dumps stay local-only (they carry
+  sessions + password hashes).
+- Automated encrypted lane verified fresh: hibana-safe `backups/` = 122 snapshots, latest
+  2026-11-07T21:23Z (prod). The 4×-daily cron is alive.
+- Prod reality captured for the plan: users 6 · projects 36 · sprints 2 · strategies 0 · dev_tasks
+  57 · project_archives 147. Data-clean checks for the Phase-2 unique indexes: ZERO sprint name
+  twins, ZERO multi-drafts, ZERO strategy twins, ZERO tag twins. 1 orphan archive row already
+  exists (its project is gone) — live evidence for the DB-3 purge gap.
+
+**The audit (four deep passes, evidence with file:line):** backend (devboard/projects routes —
+31 endpoints, 2 P1s: the tag find-or-create race → 500, and POST /sprints closing the active
+sprint BEFORE window validation), frontend (the islands — 4 P1s: full-refetch+full-rebuild on
+every mutation, dragover layout thrash, touch scroll-block, project-page world-refetch on column
+repaint), database (EQP-verified on a fresh migrated schema: ONE real full scan —
+project_archives.sprint_id; the TOCTOU gaps; the archives-purge orphan gap; otherwise unusually
+healthy), desktop (the parity cost map: island re-pin ritual, seam gates, the WEB_VERSION drift
+bug, the manual-probe process risk).
+
+**The deliverable:** `docs/project-kanban/AUDIT-REMEDIATION-SPEC.md` — the full findings catalog
+(BE/FE/DB/DT IDs) + an 8-phase, 8-session plan (S252–S259) ordered by priority × impact:
+correctness → DB health (migration 0067, additive-only, backup ritual baked in) → interaction
+perf → payload diet → CSS diet → backend modularization → UX polish → close-out with a real
+restore drill. Standing rules: commit+push after every fix, red-line backup ritual before any
+migration, desktop parity in the same phase, §14 status tracking, §13 next-session prompt
+template. Explicit out-of-scope list keeps future sessions from speculative index work and
+contract-breaking "cleanups".
+
+**Next:** Phase 1 (S252) — the correctness & safety pack: BE-6 tag race, BE-7 sprint window
+order, BE-10 archive-done transaction, BE-9 double fetch, BE-2 bump loop, + the desktop
+WEB_VERSION one-liner (DT-1). No schema, no payload, no island changes.

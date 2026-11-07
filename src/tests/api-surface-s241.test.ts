@@ -73,6 +73,7 @@ type BoardPayload = {
   tags: Record<string, unknown>[]
   task_tags: Record<string, unknown>[]
   task_deps: TaskDepEdge[]
+  strategies: unknown[] // S250: the 8th additive payload key
 }
 
 async function getBoard(app: App, headers: Record<string, string>, pid: string): Promise<{ res: Response; body: BoardPayload }> {
@@ -94,8 +95,13 @@ describe('S241 §15 — task_deps: the board payload dependency read surface', (
       expect((await addDep(app, headers, a2, a1)).status).toBe(201) // a1 blocks a2
       expect((await addDep(app, headers, a3, a1)).status).toBe(201) // a1 blocks a3
       const { body } = await getBoard(app, headers, pid)
-      // the seven-key payload: the S209 six + task_deps (additive #7)
-      expect(Object.keys(body).sort()).toEqual(['categories', 'project', 'sprints', 'tags', 'task_deps', 'task_tags', 'tasks'])
+      // the EIGHT-key payload (S250/0066 moved the pin): the S209 six + task_deps
+      // (additive #7) + strategies (additive #8 — the STRATEGIES-SPEC §4 registry
+      // key; additive keys ride along by the S241 doctrine, the pin moves with them)
+      expect(Object.keys(body).sort()).toEqual(['categories', 'project', 'sprints', 'strategies', 'tags', 'task_deps', 'task_tags', 'tasks'])
+      // S250: the 8th key is present + well-formed even when unused (empty array)
+      expect(Array.isArray(body.strategies)).toBe(true)
+      expect(body.strategies).toEqual([])
       // every edge carries EXACTLY the two id keys (the task_tags flat-join shape)
       expect(body.task_deps).toHaveLength(2)
       for (const e of body.task_deps) expect(Object.keys(e).sort()).toEqual(['blocked_task_id', 'blocker_task_id'])

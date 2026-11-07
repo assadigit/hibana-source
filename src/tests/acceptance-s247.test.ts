@@ -692,10 +692,10 @@ describe('S247 — §24-6 the same instant both ways (dueDayLabel)', () => {
 // s245/s246 pins re-pinned in place with citations).
 // ---------------------------------------------------------------------------
 describe('S247 — the public/ hygiene (the cache-bust ladder moved with the fix)', () => {
-  it('devboard.css is at v45 on all 23 carrier pages and sw.js is at hibana-v459 with the S247 carrier note', () => {
+  it('devboard.css is at v46 on all 23 carrier pages and sw.js is at hibana-v460 with the S250 carrier note', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v459"')).toBe(true)
-    expect(sw.includes('// v459 (S247)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v460"')).toBe(true)
+    expect(sw.includes('// v460 (S250)')).toBe(true)
     // the AA fix values are the shipped ones (the a11y e2e pins the rendered ratios)
     const css = readPublic('css/devboard.css')
     expect(css).toContain('.db-due-row.st-comfortable { color: #4d6b4d; }')

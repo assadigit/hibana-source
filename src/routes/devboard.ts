@@ -25,7 +25,7 @@ import { getOwnedProject, toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
 import { executeIn } from '../lib/inchunk'
-import type { Config, UserRow, DevTaskRow, SprintRow, TagRow } from '../types'
+import type { Config, UserRow, DevTaskRow, SprintRow, TagRow, StrategyRow } from '../types'
 import { categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 import { errJson, ErrorCode } from '../lib/errors'
 import { hexColorSchema, EMOJI_TOKEN_RE } from '../validation/schemas'
@@ -128,6 +128,9 @@ const createSprintSchema = z.object({
   // presets (24h/48h/72h/1w/2w/1m) compute end = start + duration.
   started_at: isoDate.optional(),
   ended_at: isoDate.nullable().optional(),
+  // S250 (0066): assign the strategy TOGETHER with the define (owner decision #11 —
+  // "assign strategy and sprint together"). Handler-guarded: same project, active+paused.
+  strategy_id: z.string().max(64).nullable().optional(),
 }).refine(sprintRangeOk, { message: 'bad_range' }) // S235: reject end <= start at create time
 const updateSprintSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
@@ -137,8 +140,34 @@ const updateSprintSchema = z.object({
   due_at: isoDate.nullable().optional(), // S240: null→value stamps the origin; value→value keeps it; null clears both
   started_at: isoDate.optional(),
   ended_at: isoDate.nullable().optional(), // explicit null = reopen this sprint's end
+  // S250 (0066 — STRATEGIES-SPEC §4): re-assign or clear the strategy this sprint
+  // serves. Explicit null clears; undefined = untouched. Assignability (same project,
+  // active+paused only) is handler-guarded via strategyAssignable.
+  strategy_id: z.string().max(64).nullable().optional(),
 })
 const reorderSchema = z.object({ ids: z.array(z.string().max(64)).min(1).max(500) })
+// S250 (0066 — STRATEGIES-SPEC §4): the strategy tier above sprints. Name grammar is
+// the sprint one (1-80, case-insensitive unique per project); description is a plain
+// light note (NOT the sprint's 100k rich doc — it renders as text in the editor +
+// tooltips); priority REUSES the task vocabulary (owner decision #3); emoji rides the
+// same single-token contract (decision #8).
+const strategyEmoji = z.string().trim().max(16).regex(EMOJI_TOKEN_RE).nullish()
+const createStrategySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().max(2000).optional(),
+  emoji: strategyEmoji,
+  priority: prioritySchema.optional(),
+})
+const updateStrategySchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  description: z.string().max(2000).nullable().optional(), // explicit null clears the note
+  emoji: strategyEmoji,
+  priority: prioritySchema.optional(),
+  // S250 (owner decision #4/#9): the explicit lifecycle. Transitions are free EXCEPT
+  // →completed, which the handler guards (an ACTIVE sprint still serving this strategy
+  // blocks it — "Finish or pause its active sprint first").
+  status: z.enum(['active', 'paused', 'completed']).optional(),
+})
 const tagBodySchema = z.object({ name: z.string().trim().min(1).max(60), color: hexColor.optional() })
 // S240 (0065 — spec pack §14): one Blocked-by edge. The blocker is a task id in the
 // SAME project (cross-project is rejected in the handler via ownedTask on both ends —
@@ -178,6 +207,10 @@ import {
   sprintNameTaken, // S240 (0065): case-insensitive project-scoped name uniqueness (§4.3)
   taskDepsForProject, // S241 (0065 read surface): the flat per-project dep edge join (§15)
   boardTaskRows, // S241: task rows + the server-computed effective deadline (§10/§18)
+  ownedStrategy, // S250 (0066): user-scoped strategy resolution (STRATEGIES-SPEC §4)
+  strategyNameTaken, // S250: case-insensitive project-scoped name uniqueness (the sprint grammar)
+  strategyAssignable, // S250: the assignment guard — active+paused only, completed never
+  STRATEGY_PRIO_ORDER_SQL, // S250: priority-first board order (the task-column rule)
 } from './devboard-helpers'
 
 export function devboardRoutes(cfg: Config) {
@@ -189,7 +222,7 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
-    const [tasks, sprints, tags, taskTags, categories, taskDeps] = await Promise.all([
+    const [tasks, sprints, tags, taskTags, categories, taskDeps, strategies] = await Promise.all([
       cfg.db.query<DevTaskRow & { tags: string; shot_count: number }>(
         // S29 follow-up: PRIORITY-FIRST ordering — tasks auto-sort urgent → high →
         // medium → low inside every column (sort_order = manual drag still orders
@@ -233,6 +266,15 @@ export function devboardRoutes(cfg: Config) {
       // S241 (spec §15 — D8): the 7th additive payload key — the flat per-project
       // blocker→blocked edge join (own lagging-D1 [] belt inside the helper).
       taskDepsForProject(cfg, p.id),
+      // S250 (0066 — STRATEGIES-SPEC §4): the 8th additive payload key — the project's
+      // strategy registry, priority-first then oldest-first (the task-column rule; the
+      // client's roll-ups derive from tasks+sprints it already holds). The catch→[]
+      // belt (the categories grammar) keeps a lagging pre-0066 D1 serving the board
+      // gracefully instead of 500ing it.
+      cfg.db.query<StrategyRow>(
+        `SELECT st.* FROM strategies st WHERE st.project_id = ? ORDER BY ${STRATEGY_PRIO_ORDER_SQL}`,
+        [p.id],
+      ).catch(() => [] as StrategyRow[]),
     ])
     return await etag(c, c.json({
       project: { id: p.id, title: p.title, status: p.status, type: p.type },
@@ -243,6 +285,10 @@ export function devboardRoutes(cfg: Config) {
       categories,
       sprints,
       tags,
+      // S250: the 8th additive key — the strategy registry (spec §4). Every pre-S250
+      // client (the desktop island pre-re-pin included) ignores unknown keys; the
+      // S241 payload pin test moves to the eight-key set.
+      strategies,
       // Flat per-task label join ({task_id, id, name, color}) — one query, joined
       // client-side by whoever renders cards.
       task_tags: taskTags,
@@ -689,6 +735,16 @@ export function devboardRoutes(cfg: Config) {
       [p.id],
     )
     if (draft.length) return c.json({ error: ErrorCode.draft_exists, draft_id: draft[0].id }, 409)
+    // S250 (0066 — STRATEGIES-SPEC §4): the together-assignment guard — a strategy_id
+    // on create must resolve in THIS project and be assignable (active + paused; a
+    // completed strategy is a finished direction and takes no new sprints). Foreign /
+    // missing ids are simply not found; a completed one answers 409 with its own code
+    // so the define dialog can name the reason.
+    if (body.strategy_id != null) {
+      const verdict = await strategyAssignable(cfg, p.id, body.strategy_id)
+      if (verdict === 'not_found') return errJson(c, ErrorCode.not_found)
+      if (verdict === 'completed') return errJson(c, ErrorCode.strategy_completed)
+    }
     // S240 (0065 — spec §4.3): case-insensitive name uniqueness within the project
     // across ALL lifecycle states (a finished sprint still holds its name — history).
     // Legacy case-twins are never reconciled by the migration; this write-time gate
@@ -725,17 +781,17 @@ export function devboardRoutes(cfg: Config) {
       // S240: a created-with-both-dates sprint is a CLOSED window = completed (the
       // backfill's mapping, kept true by every writer); started-only = active.
       await cfg.db.execute(
-        `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
-        [id, p.id, name, body.version ?? null, body.description ?? '', startedAt, endedAt, now, endedAt != null ? 'completed' : 'active', body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now],
+        `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at, strategy_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, p.id, name, body.version ?? null, body.description ?? '', startedAt, endedAt, now, endedAt != null ? 'completed' : 'active', body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now, body.strategy_id ?? null],
       )
       await logHistory(cfg, p.id, t('{name} started', '{name} شروع شد', { name }))
       return c.json({ ok: true, id, name, version: body.version ?? null, draft: false }, 201)
     }
     await cfg.db.execute(
-      `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?, 'planned', ?, ?, ?, ?)`,
-      [id, p.id, name, body.version ?? null, body.description ?? '', now, now, body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now],
+      `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at, strategy_id)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?, 'planned', ?, ?, ?, ?, ?)`,
+      [id, p.id, name, body.version ?? null, body.description ?? '', now, now, body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now, body.strategy_id ?? null],
     )
     await logHistory(cfg, p.id, t('{name} defined', '{name} تعریف شد', { name }))
     return c.json({ ok: true, id, name, version: body.version ?? null, draft: true }, 201)
@@ -753,6 +809,16 @@ export function devboardRoutes(cfg: Config) {
     // byte-identically got already_started for both) can't start again.
     if (status !== 'planned' && status !== 'paused') return errJson(c, ErrorCode.already_started)
     const now = new Date().toISOString()
+    // S250 (0066 — STRATEGIES-SPEC §4, the delegated read guard): starting a sprint
+    // whose strategy is COMPLETED is refused — a completed strategy is a finished
+    // direction; re-assign the sprint to an active one first. A PAUSED strategy does
+    // NOT block (pause is a soft state — the owner may deliberately keep pushing).
+    // Belt: on a pre-0066 D1 the sprints table has no strategy_id column, so the row
+    // reads undefined — `!= null` skips the guard and old data starts exactly as before.
+    if (s.strategy_id != null) {
+      const verdict = await strategyAssignable(cfg, s.project_id, s.strategy_id)
+      if (verdict === 'completed') return errJson(c, ErrorCode.strategy_completed)
+    }
     // S240 (0065 — spec §5.1/§5.2 — one-active, the pack's D1): starting while ANOTHER
     // sprint is active is a 409 carrying the active sprint's id, NEVER a silent
     // auto-close (the old /start closed the open sibling; the Phase 4 UI resolves the
@@ -804,6 +870,12 @@ export function devboardRoutes(cfg: Config) {
     if (!s) return errJson(c, ErrorCode.not_found)
     if (sprintStatusOf(s) !== 'paused') return errJson(c, ErrorCode.invalid_input)
     const now = new Date().toISOString()
+    // S250 (0066): resume is an ACTIVATION (startSprintWithConflict treats the two
+    // identically) — the completed-strategy guard applies here too.
+    if (s.strategy_id != null) {
+      const verdict = await strategyAssignable(cfg, s.project_id, s.strategy_id)
+      if (verdict === 'completed') return errJson(c, ErrorCode.strategy_completed)
+    }
     const active = await findActiveSprint(cfg, s.project_id)
     if (active && active.id !== s.id) return c.json({ error: ErrorCode.sprint_active_exists, active_id: active.id }, 409)
     await cfg.db.execute("UPDATE sprints SET status = 'active', updated_at = ? WHERE id = ?", [now, s.id])
@@ -822,6 +894,14 @@ export function devboardRoutes(cfg: Config) {
     // may re-assert its OWN name (the old flows resend fields verbatim); every other
     // project sibling — in ANY lifecycle state — holds it.
     if (body.name !== undefined && (await sprintNameTaken(cfg, s.project_id, body.name, s.id))) return errJson(c, ErrorCode.duplicate)
+    // S250 (0066 — STRATEGIES-SPEC §4): re-assignment guard, shared by BOTH branches
+    // below (draft + started). Explicit null clears (always legal); a value must
+    // resolve in this project and be assignable (active + paused — completed never).
+    if (body.strategy_id != null) {
+      const verdict = await strategyAssignable(cfg, s.project_id, body.strategy_id)
+      if (verdict === 'not_found') return errJson(c, ErrorCode.not_found)
+      if (verdict === 'completed') return errJson(c, ErrorCode.strategy_completed)
+    }
     // The deadline-origin rules (§12.2/§13 — same shape the task PATCH carries):
     // null→value stamps due_origin_at; value→value PRESERVES it (an extension is not
     // a re-assignment); null CLEARS both (a re-add starts a fresh timeline).
@@ -843,6 +923,7 @@ export function devboardRoutes(cfg: Config) {
       if (body.version !== undefined) push('version', body.version)
       if (body.description !== undefined) push('description', body.description)
       if (body.emoji !== undefined) push('emoji', body.emoji)
+      if (body.strategy_id !== undefined) push('strategy_id', body.strategy_id) // S250: re-assign/clear on drafts too
       dueOriginSet(push)
       if (!sets.length) return c.json({ ok: true })
       push('updated_at', now) // S240 (D8): every sprint PATCH stamps updated_at
@@ -885,6 +966,7 @@ export function devboardRoutes(cfg: Config) {
     if (body.version !== undefined) push('version', body.version)
     if (body.description !== undefined) push('description', body.description)
     if (body.emoji !== undefined) push('emoji', body.emoji)
+    if (body.strategy_id !== undefined) push('strategy_id', body.strategy_id) // S250: re-assign/clear anytime (owner decision #11)
     dueOriginSet(push)
     if (body.started_at !== undefined) push('started_at', body.started_at)
     if (body.ended_at !== undefined) {
@@ -970,6 +1052,12 @@ export function devboardRoutes(cfg: Config) {
     // S240 (0065): reopen = completed → ACTIVE (spec §5.4 + the pack's prompt); a
     // paused sprint resumes via /resume (or /start), never by reopen.
     if (status !== 'completed') return errJson(c, ErrorCode.invalid_input)
+    // S250 (0066): reopen is an ACTIVATION like start/resume — the completed-strategy
+    // guard applies (a finished direction takes no re-opened running sprints either).
+    if (s.strategy_id != null) {
+      const verdict = await strategyAssignable(cfg, s.project_id, s.strategy_id)
+      if (verdict === 'completed') return errJson(c, ErrorCode.strategy_completed)
+    }
     // Same guard as PATCH's null-end rule: only the LATEST sprint by started_at may
     // reopen — the timeline's trailing-open-band ordering (S235's contract).
     const others = await cfg.db.query<{ started_at: string }>(
@@ -1011,6 +1099,80 @@ export function devboardRoutes(cfg: Config) {
       tx.sql('DELETE FROM sprints WHERE id = ?', [s.id])
     })
     await logHistory(cfg, s.project_id, t('{name} deleted', '{name} حذف شد', { name: s.name }))
+    return c.json({ ok: true })
+  })
+
+  // ---- strategies (S250/0066 — STRATEGIES-SPEC.md §4) -----------------------------
+  // The tier ABOVE sprints: Strategy (broad) → Sprint (a push) → Task. Every decision
+  // in the spec's §2 table is owner-approved. Assignment is optional, one-per-sprint,
+  // and sprints survive a strategy delete (the FK is ON DELETE SET NULL — the category
+  // delete grammar, not the project one).
+
+  app.post('/api/projects/:projectId/strategies', async (c) => {
+    const body = await jsonBody<z.infer<typeof createStrategySchema>>(c, createStrategySchema)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
+    const user = c.get('user')
+    const t = trFor(c)
+    const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
+    if (!p) return errJson(c, ErrorCode.not_found)
+    // The sprint-name grammar (spec §4): case-insensitive uniqueness within the
+    // project across ALL lifecycle states — a completed strategy still holds its name.
+    if (await strategyNameTaken(cfg, p.id, body.name)) return errJson(c, ErrorCode.duplicate)
+    const id = uuid()
+    const now = new Date().toISOString()
+    await cfg.db.execute(
+      'INSERT INTO strategies (id, project_id, name, description, priority, status, emoji, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)',
+      [id, p.id, body.name, body.description ?? '', body.priority ?? 'medium', 'active', body.emoji ?? null, now, now],
+    )
+    await logHistory(cfg, p.id, t('{name} strategy defined', 'استراتژی {name} تعریف شد', { name: body.name }))
+    return c.json({ ok: true, id }, 201)
+  })
+
+  app.patch('/api/strategies/:id', async (c) => {
+    const body = await jsonBody<z.infer<typeof updateStrategySchema>>(c, updateStrategySchema)
+    if (!body) return errJson(c, ErrorCode.invalid_input)
+    const user = c.get('user')
+    const st = await ownedStrategy(cfg, user.id, c.req.param('id'))
+    if (!st) return errJson(c, ErrorCode.not_found)
+    // S250 (owner decision #9 — the completion guard): completing a strategy that
+    // still has an ACTIVE sprint is refused — "Finish or pause its active sprint
+    // first". Planned/paused sprints do NOT block (they are not running); reopening
+    // and pausing are always free (no one-active-strategy invariant exists).
+    if (body.status === 'completed' && st.status !== 'completed') {
+      const active = await cfg.db.query<{ id: string }>(
+        `SELECT s.id FROM sprints s WHERE s.strategy_id = ? AND s.status = 'active'`,
+        [st.id],
+      ).catch(() => [] as { id: string }[]) // 0066 belt: a pre-migration D1 has no strategy_id column
+      if (active.length) return errJson(c, ErrorCode.strategy_active_sprint)
+    }
+    // The name gate (self-excluded — a re-assert of one's own name stays legal).
+    if (body.name !== undefined && (await strategyNameTaken(cfg, st.project_id, body.name, st.id))) return errJson(c, ErrorCode.duplicate)
+    const now = new Date().toISOString()
+    const sets: string[] = []
+    const params: unknown[] = []
+    const push = (col: string, val: unknown) => { sets.push(`${col} = ?`); params.push(val) }
+    if (body.name !== undefined) push('name', body.name)
+    if (body.description !== undefined) push('description', body.description)
+    if (body.emoji !== undefined) push('emoji', body.emoji)
+    if (body.priority !== undefined) push('priority', body.priority)
+    if (body.status !== undefined) push('status', body.status)
+    if (!sets.length) return c.json({ ok: true })
+    push('updated_at', now) // the D8 sync doctrine — every write stamps it
+    params.push(st.id)
+    await cfg.db.execute(`UPDATE strategies SET ${sets.join(', ')} WHERE id = ?`, params)
+    return c.json({ ok: true })
+  })
+
+  app.delete('/api/strategies/:id', async (c) => {
+    const user = c.get('user')
+    const t = trFor(c)
+    const st = await ownedStrategy(cfg, user.id, c.req.param('id'))
+    if (!st) return errJson(c, ErrorCode.not_found)
+    // Hard delete behind the UI confirm (spec §2 decision #10): assigned sprints
+    // fall back to unassigned via the FK's ON DELETE SET NULL — history survives.
+    // "Complete" is the graceful exit that keeps the roll-up visible; delete is cleanup.
+    await cfg.db.execute('DELETE FROM strategies WHERE id = ?', [st.id])
+    await logHistory(cfg, st.project_id, t('{name} strategy deleted', 'استراتژی {name} حذف شد', { name: st.name }))
     return c.json({ ok: true })
   })
 

@@ -192,7 +192,9 @@ describe('personal export isolation (buildUserSnapshot)', () => {
       // project_categories join join the missing list in the pre-0062 window.
       // S240 (0065) re-pin: dev_task_deps joins it in the pre-0065 window — the deps
       // guardedQuery reports the gap loudly instead of 500ing the export.
-      expect(export_.missing_tables).toEqual(['note_folders', 'vault_notes', 'project_categories', 'dev_task_deps', 'categories'])
+      // S250 (0066) re-pin: strategies joins it in the pre-0066 window (after
+      // project_categories — the PROJECT_SCOPED iteration order).
+      expect(export_.missing_tables).toEqual(['note_folders', 'vault_notes', 'project_categories', 'strategies', 'dev_task_deps', 'categories'])
       expect(export_.data.projects).toHaveLength(1) // everything else still exports
       expect(export_.data.note_folders).toBeUndefined()
       expect(export_.data.vault_notes).toBeUndefined()

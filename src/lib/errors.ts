@@ -81,6 +81,12 @@ export const ErrorCode = {
   // as a 400 ("no NEW assignment to a completed sprint", spec §8) with an explicit
   // status — a recorded divergence, like every deliberate one below.
   sprint_completed: 'sprint_completed',
+  // S250 (0066 — STRATEGIES-SPEC §4): the strategy tier's two conflicts. A COMPLETED
+  // strategy takes no new sprint assignments (and a sprint serving one cannot start
+  // — a finished direction); completing a strategy that still has an ACTIVE sprint is
+  // refused (owner decision #9: "Finish or pause its active sprint first").
+  strategy_completed: 'strategy_completed',
+  strategy_active_sprint: 'strategy_active_sprint',
   // 410 — gone
   archived: 'archived',
   // 413 — payload too large
@@ -152,6 +158,8 @@ const STATUS_BY_CODE: Record<ErrorCodeValue, ContentfulStatusCode> = {
   sprint_active_exists: 409,
   sprint_active: 409,
   sprint_completed: 409,
+  strategy_completed: 409,
+  strategy_active_sprint: 409,
   archived: 410,
   file_too_large: 413,
   too_large: 413,

@@ -484,17 +484,17 @@ describe('S246 — the desktop seam tripwires + the ladder (the Phase 9 re-pin i
     expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(4)
   })
 
-  it('sw.js is at hibana-v459 with the S247 carrier note (the Phase-8 a11y/contrast round moved the ladder — devboard.css v45; the S246 carriers stayed)', () => {
+  it('sw.js is at hibana-v460 with the S250 carrier note (the strategies tier moved the ladder; the S246 carriers are noted in the v460 line)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v459"')).toBe(true)
-    expect(sw.includes('// v459 (S247)')).toBe(true)
-    expect(sw).toMatch(/devboard\.js v36/)
-    expect(sw).toMatch(/i18n-fa\.js\?v=104/)
+    expect(sw.includes('const VERSION = "hibana-v460"')).toBe(true)
+    expect(sw.includes('// v460 (S250)')).toBe(true)
+    expect(sw).toMatch(/devboard\.js v37/)
+    expect(sw).toMatch(/i18n-fa\.js\?v=105/)
   })
 
-  it('the lazy devboard injector literals moved to v36 (the s242v33 lesson: the check reads them)', () => {
-    expect(readPublic('js/board-page.js').includes('/js/devboard.js?v=36')).toBe(true)
-    expect(readPublic('js/sprint-page.js').includes('/js/devboard.js?v=36')).toBe(true)
-    expect(readPublic('js/project-page.js').includes('/js/devboard.js?v=36')).toBe(true)
+  it('the lazy devboard injector literals moved to v37 (the s242v33 lesson: the check reads them — S250 moved them from v36)', () => {
+    expect(readPublic('js/board-page.js').includes('/js/devboard.js?v=37')).toBe(true)
+    expect(readPublic('js/sprint-page.js').includes('/js/devboard.js?v=37')).toBe(true)
+    expect(readPublic('js/project-page.js').includes('/js/devboard.js?v=37')).toBe(true)
   })
 })

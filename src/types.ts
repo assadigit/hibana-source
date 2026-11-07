@@ -270,6 +270,27 @@ export interface SprintRow {
   due_at: string | null // 0065 (S240 — §9): optional sprint-level deadline (ISO-8601 instant)
   due_origin_at: string | null // 0065 (S240 — §12.2): the sprint deadline's progress-start stamp (set/edit-preserve/clear-reset)
   updated_at: string | null // 0065 (S240 — D8): stamped on every sprint write (sync gap); NULL on legacy rows
+  strategy_id: string | null // 0066 (S250): the optional strategy this sprint serves (NULL = unassigned; ON DELETE SET NULL)
+}
+
+// 0066 (S250 — STRATEGIES-SPEC.md §3): the per-project strategy registry — the broad
+// direction tier above sprints (Strategy → Sprint → Task). Lifecycle mirrors the
+// sprint grammar (active|paused|completed); priority REUSES the task vocabulary
+// (owner decision table §2). Assignment is optional (sprints.strategy_id nullable)
+// and one-strategy-per-sprint keeps the roll-up math honest.
+export type StrategyStatus = 'active' | 'paused' | 'completed'
+
+export interface StrategyRow {
+  id: string
+  project_id: string
+  name: string
+  description: string
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  status: StrategyStatus // NOT NULL at birth (0066: a fresh table pins its CHECKs — the 0065 backfill restriction never applied)
+  emoji: string | null // optional identity (the sprint emoji token grammar; NULL = the default ⚑ glyph)
+  sort_order: number // exists for a future manual drag; v1 sorts priority-first then oldest-first
+  created_at: string
+  updated_at: string | null
 }
 
 // 0065 (S240 — §14): one blocker→blocked edge. The user-facing "Blocks N" view is

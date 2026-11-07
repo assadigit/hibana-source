@@ -191,7 +191,7 @@ describe('backup snapshot coverage', () => {
       await db.execute("INSERT INTO project_archives (id, project_id, title, status, priority, original_created_at, archived_at) VALUES (?, ?, ?, 'done', 'low', ?, ?)", ['ar1', 'p1', 'T', new Date().toISOString(), new Date().toISOString()])
 
       const snap = await buildSnapshot(db)
-      expect(snap.schema_version).toBe(20260926) // S152: +categories (the used slice) +project_categories
+      expect(snap.schema_version).toBe(20261107) // S250: +strategies (S240: +dev_task_deps; S152: +categories +project_categories)
       expect(snap.data.project_archives).toHaveLength(1)
       expect(snap.data.dev_task_tags).toHaveLength(1)
     } finally {

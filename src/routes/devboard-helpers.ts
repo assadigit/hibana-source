@@ -19,7 +19,7 @@
 
 import { uuid } from '../lib/ids'
 import { executeIn } from '../lib/inchunk'
-import type { Config, DevTaskRow, SprintRow, SprintStatus, BacklogDocRow } from '../types'
+import type { Config, DevTaskRow, SprintRow, SprintStatus, BacklogDocRow, StrategyRow, StrategyStatus } from '../types'
 
 export async function logHistory(cfg: Config, projectId: string, note: string) {
   await cfg.db.execute('INSERT INTO project_history_log (id, project_id, note, created_at) VALUES (?, ?, ?, ?)', [
@@ -458,3 +458,48 @@ export async function loadBacklog(cfg: Config, projectId: string): Promise<{
   return { docs, history: events.slice(0, 10), latestAt: events[0]?.at ?? null, plans: planRows }
 }
 
+
+// ---- S250 (0066 — the Strategies layer, STRATEGIES-SPEC.md §4) ----------------------
+
+/** S250: user-scoped strategy resolution (rule 1 — the ownedSprint grammar): a foreign
+ *  strategy id (or one on a deleted project) is simply not found. */
+export async function ownedStrategy(cfg: Config, userId: string, id: string): Promise<StrategyRow | null> {
+  const rows = await cfg.db.query<StrategyRow>(
+    'SELECT st.* FROM strategies st JOIN projects p ON p.id = st.project_id WHERE st.id = ? AND p.user_id = ? AND p.deleted_at IS NULL',
+    [id, userId],
+  )
+  return rows[0] ?? null
+}
+
+/** S250 (spec §4 — the sprint-name grammar, reused): case-insensitive name uniqueness
+ *  within ONE project across ALL lifecycle states (a completed strategy still holds its
+ *  name — history). `excludeId` lets a strategy re-assert its own name on PATCH. */
+export async function strategyNameTaken(cfg: Config, projectId: string, name: string, excludeId?: string): Promise<boolean> {
+  const rows = await cfg.db.query<{ id: string }>(
+    'SELECT id FROM strategies WHERE project_id = ? AND lower(trim(name)) = lower(trim(?))',
+    [projectId, name],
+  )
+  return rows.some((r) => r.id !== excludeId)
+}
+
+/** S250 (spec §4 — the assignment guard): validates a strategy_id being attached to a
+ *  sprint of `projectId`. Returns 'ok' | 'not_found' | 'completed' — the caller maps
+ *  each verdict to its HTTP answer. Assignable = active + paused ONLY (owner decision
+ *  #11: a completed strategy is a finished direction — it keeps its existing sprint
+ *  history visible but takes no new/edited assignments). */
+export async function strategyAssignable(
+  cfg: Config,
+  projectId: string,
+  strategyId: string,
+): Promise<'ok' | 'not_found' | 'completed'> {
+  const rows = await cfg.db.query<{ status: StrategyStatus }>(
+    'SELECT status FROM strategies WHERE id = ? AND project_id = ?',
+    [strategyId, projectId],
+  )
+  if (!rows.length) return 'not_found'
+  return rows[0].status === 'completed' ? 'completed' : 'ok'
+}
+
+/** S250 (spec §4 — the priority-first board order, the task-column rule): urgent →
+ *  high → medium → low, oldest first within a tier. Shared by the payload SELECT. */
+export const STRATEGY_PRIO_ORDER_SQL = `CASE st.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, st.created_at`

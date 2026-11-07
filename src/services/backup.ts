@@ -114,7 +114,13 @@ export const SNAPSHOT_TABLES = [
   // idea" tables). Both are project-scoped children, so they sit after their parents.
   // S152 (0062): the GLOBAL category library + the per-project join are FK parents of
   // dev_tasks.category_id too — categories BEFORE project_categories BEFORE dev_tasks.
-  'categories', 'project_categories', 'task_categories', 'sprints', 'dev_tasks', 'dev_task_tags',
+  'categories', 'project_categories', 'task_categories',
+  // S250 (0066 — STRATEGIES-SPEC §3): the strategy registry — an FK PARENT of
+  // sprints.strategy_id, so it precedes sprints (FK-safe restore order). Caught by
+  // the backup-audit drift guard the moment the table materialized — a strategy is
+  // user content ("never lose an idea").
+  'strategies',
+  'sprints', 'dev_tasks', 'dev_task_tags',
   // S240 (0065 — spec pack §14): the task-dependency edges — BOTH columns FK dev_tasks,
   // so they sit after it (FK-safe restore order). Caught by the backup-audit drift
   // guard the moment the table materialized — a dependency edge is user content.
@@ -168,7 +174,7 @@ export async function buildSnapshot(db: Db): Promise<Snapshot> {
     log.warn('backup_missing_tables', { tables: missing.join(','), hint: 'migration not applied?' })
   }
   return {
-    schema_version: 20260926,
+    schema_version: 20261107,
     // Session 20 (backup-coverage audit): bumped 20260910 → 20260920 (snapshot shape
     // changed: +project_archives, +dev_task_tags; dev-board cluster reordered FK-safe).
     // Old snapshots stay interpretable — the restore scripts key on table names present
@@ -211,7 +217,7 @@ const PROJECT_SCOPED_EXPORT_TABLES = [
   // Session 20: archived dev tasks + the dev-board cluster are user content too — a
   // personal export without them loses archived work ("never lose an idea").
   'project_archives', 'dev_tasks',
-  'project_categories', 'task_categories', 'sprints', 'backlog_docs',
+  'project_categories', 'task_categories', 'strategies', 'sprints', 'backlog_docs',
 ] as const
 /** Tables that scope through dev_tasks.task_id (no project_id column of their own). */
 const DEV_TASK_CHILD_EXPORT_TABLES = ['dev_task_tags'] as const
@@ -329,7 +335,8 @@ export async function buildUserSnapshot(db: Db, userId: string): Promise<Snapsho
     // names present in `data`, so older readers simply don't see the new keys.
     // S152: +categories (the used slice) +project_categories → 20260926.
     // S240 (0065): +dev_task_deps (the dependency edges) → 20261105.
-    schema_version: 20261105,
+    // S250 (0066): +strategies (the strategy tier) → 20261107.
+    schema_version: 20261107,
     exported_at: new Date().toISOString(),
     missing_tables: missing,
     data,

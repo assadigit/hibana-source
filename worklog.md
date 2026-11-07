@@ -470,3 +470,20 @@ errors.
 
 **The desktop half (hibana-desktop, next commit):** the island rides this ref
 (pin bump to this SHA + probe-view as the 12th probe + v0.1.35).
+
+## Session S250 — the strategies tier (2026-11-07)
+
+**The owner's ask, verbatim:** "I have some strategies: like: Make website more to be seen. then it become sprint like this: SEO then it become Tasks of seo sprint: X Y Z. SO every project has: 1. Strategy (broad) 2. Sprints 3. Tasks. In sprint page, I want a special section on top which shows the strategies, their priority etc."
+
+**The decision table (all owner-approved in-session — STRATEGIES-SPEC.md §2 is the written rule-4 approval):** task cards show NOTHING (strategies are sprint-page context); assignment optional; priority REUSES the task vocabulary; lifecycle active/paused/completed; roll-up derived purely from its sprints' tasks; title + optional description (+ optional emoji); one-active-sprint stays PER-PROJECT; completing a strategy with an active sprint BLOCKS ("Finish or pause its active sprint first"); deleting is allowed behind a confirm (sprints survive unassigned); assign strategy + sprint TOGETHER in the define dialog, easily added or cleared.
+
+**What shipped (web, v0.4.1.44):**
+- Migration **0066** — `strategies` table + `sprints.strategy_id` (nullable FK, ON DELETE SET NULL). Applied to BOTH D1s FIRST (bookmarks in §9), schema 64→65. Additive-only + the catch→[] payload belt.
+- API — the devboard payload's **8th additive key** `strategies`; strategies CRUD (case-insensitive per-project names, the sprint grammar); `strategy_id` on sprint create/PATCH; guards: complete-with-active-sprint → 409 `strategy_active_sprint`; assignment/activation (start+resume+reopen) under a completed strategy → 409 `strategy_completed`. The local probe CAUGHT the resume/reopen gap pre-ship — the guard now covers all three activation paths.
+- UI (sprint page only) — the strategies section on top (collapsible, slim-strip at zero), flat cards (glyph/prio/lifecycle badges, derived roll-up + progress bar, ▸ active-sprint line), card click = the focus filter (timeline + list; sidebar/draft stay the workbench), the editor modal, the ⋯ popover, the shared strategy select in the define dialog + detail Settings (no-op saves never trip the completed-409), strategy chips on list rows + the draft panel.
+- Wrappers on the ONE `api()` choke point — zero new fetch sites (desktop seam counts hold). Backup: `strategies` joins the snapshot + personal export (20261107).
+- Ladder: typecheck 0 · vitest **969/969** · eslint 0 · parity **1707/1707** (+29 st.* keys) · cache-bust PASS (devboard v37, sprint-page v28, board-page v34, project-page v85, devboard.css v46, i18n-en v111, i18n v164/i18n-fa v105) · sw **v460** · 30-probe local node-server round ALL GREEN.
+
+**Ops note:** the D1 `d1_migrations` tracking rows 0054–0065 were recorded WITHOUT the `.sql` extension (an old wrangler convention) — wrangler 4.x matches by full filename and tried to re-run 0054 ("duplicate column name: task_id"). Fixed by renaming the 12 rows on BOTH DBs (metadata-only; bookmarks taken first). `wrangler d1 migrations apply` is clean again.
+
+**Next:** the desktop round — mirror schema v4 (`strategies` + `sprints.strategy_id`), sync convert, island re-pin to this ref (the sprint page is island-embedded), seam/probe updates, version bump 0.1.37 → 0.1.38.

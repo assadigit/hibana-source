@@ -487,3 +487,33 @@ errors.
 **Ops note:** the D1 `d1_migrations` tracking rows 0054–0065 were recorded WITHOUT the `.sql` extension (an old wrangler convention) — wrangler 4.x matches by full filename and tried to re-run 0054 ("duplicate column name: task_id"). Fixed by renaming the 12 rows on BOTH DBs (metadata-only; bookmarks taken first). `wrangler d1 migrations apply` is clean again.
 
 **Next:** the desktop round — mirror schema v4 (`strategies` + `sprints.strategy_id`), sync convert, island re-pin to this ref (the sprint page is island-embedded), seam/probe updates, version bump 0.1.37 → 0.1.38.
+
+## Session S250 close — the deploy + the live verification (2026-11-07, continued)
+
+**The deploy chain (honest record):** the first push (6dd40c0) went RED on CI twice before
+the green landed — (1) fn-shape: the four grown devboard.ts endpoint flows re-pinned in
+FN-ALLOWLIST (the strategies guards grew them; one row line-drift only); (2) e2e: the S247
+§24-6 fixed-instant test's days-left count was HARDCODED '15' from its own 2026-11-06 run
+— a fixed instant decays one day per day, and it broke overnight; now derived dynamically
+(EN + the Persian-digit FA twin); (3) precache: the tier measured 2341 KB — 1 KB over the
+S248's 2340 budget; BUDGET_BYTES → 2360 with the written S250 reason. The CD gate
+(deploy only on green CI) held both times — prod never served unverified code. The green
+chain: be43ccb → CI ALL GREEN → CD deployed dev + prod.
+
+**The live verification (the owner's account, 13 probes ALL GREEN):** login → the 8-key
+payload → strategy create → sprint defined WITH strategy (the together-assignment) → the
+draft carries strategy_id → priority-first payload order → sprint started → the completion
+guard 409 (complete-with-active-sprint) → the cleanup round (finish → complete → delete →
+the sprint survives unassigned). The deployed /sprint page carries the section markup +
+sprint-page.js v28 (renderStrategies) + devboard.js v37 (createStrategy) — LIVE. The probe
+project was cleaned up.
+
+**The desktop half:** hibana-desktop 204ccd3 + the WEB_REF CI fix (16a864e — the island
+checksum gate reads the pin from the workflow env, which the S250 re-pin had moved only
+script-side) — CI green, **v0.1.39-desktop released** (3 assets, the auto-release lane).
+
+**Owner-side next:** dogfood on hibana.ir — open a project's Sprints page: the ⚑
+Strategies strip sits between the toolbar and the draft panel; define "Make website more
+seen" (priority High), then ◆ Define sprint "SEO" with the strategy selected — the card's
+roll-up + the ▸ line follow; try completing the strategy while its sprint runs (the named
+409); the desktop app auto-updates to 0.1.39 on the next check.

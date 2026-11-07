@@ -752,29 +752,42 @@ export function devboardRoutes(cfg: Config) {
     // a DRAFT (is_draft=1, started_at=now, ended_at=NULL — the user starts it later).
     const hasDates = body.started_at != null
     if (hasDates) {
-      // Close any open sprint first (same logic as /start). S240 (0065): only the
+      const startedAt = body.started_at!
+      const endedAt = body.ended_at ?? null
+      // S252 (BE-7 — the audit's P1): validate the window BEFORE closing the active
+      // sprint. The old order (close, then assert) left the active sprint PERMANENTLY
+      // closed whenever the new window failed validation — a 400 that mutates state.
+      // The assert runs against the sibling set AS IT WILL BE after the auto-close
+      // below (the active sprint's ended_at pre-stamped to its close point), so the
+      // verdicts are byte-identical to the old post-close check: the success path is
+      // unchanged, only the failure path stops writing. One sibling fetch now serves
+      // both the window view and the close (findActiveSprint's own query is folded
+      // in — same predicate, same row choice).
+      const siblings = await cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? AND is_draft = 0 ORDER BY started_at', [p.id])
+      const activeSprint = siblings.find((s) => s.ended_at == null && sprintStatusOf(s) === 'active') ?? null
+      // The close point the auto-close stamps: the day before the new start, or the
+      // active sprint's own start if it began later (the zero-day clamp).
+      const closeMs = activeSprint ? Math.max(Date.parse(startedAt) - 86400000, Date.parse(activeSprint.started_at)) : null
+      const windowSiblings = activeSprint && closeMs !== null
+        ? siblings.map((x) => (x.id === activeSprint.id ? { ...x, ended_at: new Date(closeMs).toISOString() } : x))
+        : siblings
+      // S235 (audit §4.2): the overlap check — was MISSING on the POST-create-
+      // with-dates path (only PATCH had it). A user could create a sprint that
+      // overlaps an existing closed sprint's date range. Now the shared helper
+      // catches it (sprintId=null — new sprint, don't exclude self).
+      const windowOk = await assertSprintWindowOk(cfg, p.id, null, startedAt, endedAt, windowSiblings)
+      if (!windowOk) return errJson(c, ErrorCode.invalid_input)
+      // Close any open sprint (same logic as /start). S240 (0065): only the
       // ACTIVE open sprint is auto-closed (stamped ended_at + status='completed' —
       // the legacy timeline mechanic, kept byte-compatible for old clients; the
       // explicit POST /finish is the archiving path, this auto-close archives
       // NOTHING). A PAUSED sibling keeps its open window and does NOT block the
       // new sprint (the D1 resolution — assertSprintWindowOk skips paused bands).
-      const activeSprint = await findActiveSprint(cfg, p.id)
-      if (activeSprint) {
-        const startMs = Date.parse(body.started_at!)
-        const dayBefore = startMs - 86400000
-        const closeMs = Math.max(dayBefore, Date.parse(activeSprint.started_at))
+      if (activeSprint && closeMs !== null) {
         await cfg.db.execute("UPDATE sprints SET ended_at = ?, status = 'completed', updated_at = ? WHERE id = ?", [
           new Date(closeMs).toISOString(), now, activeSprint.id,
         ])
       }
-      const startedAt = body.started_at!
-      const endedAt = body.ended_at ?? null
-      // S235 (audit §4.2): the overlap check — was MISSING on the POST-create-
-      // with-dates path (only PATCH had it). A user could create a sprint that
-      // overlaps an existing closed sprint's date range. Now the shared helper
-      // catches it (sprintId=null — new sprint, don't exclude self).
-      const windowOk = await assertSprintWindowOk(cfg, p.id, null, startedAt, endedAt)
-      if (!windowOk) return errJson(c, ErrorCode.invalid_input)
       // S240: a created-with-both-dates sprint is a CLOSED window = completed (the
       // backfill's mapping, kept true by every writer); started-only = active.
       await cfg.db.execute(

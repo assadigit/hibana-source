@@ -951,7 +951,11 @@ export function devboardRoutes(cfg: Config) {
     // (lifted to devboard-helpers.ts so POST-create-with-dates + POST-start use
     // the SAME validation). The zero-day touching exception + the open-end =
     // +∞ semantics are preserved verbatim in the helper.
-    const windowOk = await assertSprintWindowOk(cfg, s.project_id, s.id, newStart, newEnd)
+    // S252 (BE-9): the sibling set fetched above (the reopen-latest guard) is
+    // passed through — the helper's private re-query of the SAME rows was the
+    // audit's duplicate round trip. No writes happen between fetch and assert,
+    // so the set is current.
+    const windowOk = await assertSprintWindowOk(cfg, s.project_id, s.id, newStart, newEnd, siblings)
     if (!windowOk) return errJson(c, ErrorCode.invalid_input)
     // One UPDATE touching only the fields the body provided (explicit null reopens).
     // version/description ride along on started sprints too (0052) — the doc stays

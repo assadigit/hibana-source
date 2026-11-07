@@ -119,22 +119,31 @@ export async function sprintNameTaken(cfg: Config, projectId: string, name: stri
 // renders paused bands distinctly. The scan query itself stays legacy-compatible
 // (no status column reference — a pre-0065 D1 runs it unchanged; the JS filter
 // is a no-op there because paused rows cannot pre-exist the pause endpoint).
+//
+// S252 (BE-9): `siblings` — optional pre-fetched sibling rows (the SAME shape the
+// scan query returns: non-draft rows of the project). Callers that already hold
+// the set (PATCH fetched it for the reopen-latest guard) pass it and save the
+// duplicate round trip; POST-create-with-dates (BE-7) passes a POST-CLOSE VIEW
+// of the set (the active sprint's end pre-stamped to its auto-close point) so
+// the window can be validated BEFORE the close writes. Omitted → the canonical
+// scan runs, exactly as before.
 export async function assertSprintWindowOk(
   cfg: Config,
   projectId: string,
   sprintId: string | null,
   newStart: string,
   newEnd: string | null,
+  siblings?: SprintRow[],
 ): Promise<boolean> {
-  const siblings = await cfg.db.query<SprintRow>(
+  const rows = siblings ?? (await cfg.db.query<SprintRow>(
     'SELECT * FROM sprints WHERE project_id = ? AND is_draft = 0 ORDER BY started_at',
     [projectId],
-  )
+  ))
   const dayIdx = (x: string) => Math.floor(Date.parse(x) / 86400000)
   const zeroDay = (start: string, end: string) => dayIdx(start) === dayIdx(end)
   const sameMs = (a: string | null, b: string | null) => a !== null && b !== null && Date.parse(a) === Date.parse(b)
   const aZero = newEnd !== null && zeroDay(newStart, newEnd)
-  for (const x of siblings) {
+  for (const x of rows) {
     if (sprintId !== null && x.id === sprintId) continue
     if (sprintStatusOf(x) === 'paused') continue // S240: paused keeps its window, blocks nobody
     const bZero = x.ended_at !== null && zeroDay(x.started_at, x.ended_at)

@@ -197,7 +197,7 @@ import {
   loadBacklog,
   setTaskTags,
   taskTagsForProject,
-  tagColorFor,
+  findOrCreateTag, // S252 (BE-6/BE-12): the ONE shared race-safe + case-consistent tag resolver
   refreshTagUsage,
   syncTaskSearchTags,
   PRIO_ORDER_SQL,
@@ -627,14 +627,11 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const task = await ownedTask(cfg, user.id, c.req.param('id'))
     if (!task) return errJson(c, ErrorCode.not_found)
-    const now = new Date().toISOString()
-    const found = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ?', [user.id, body.name])
-    const tagId = found[0]?.id ?? uuid()
-    if (!found.length) {
-      await cfg.db.execute('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [
-        tagId, user.id, body.name, body.color ?? (await tagColorFor(cfg, user.id)), now,
-      ])
-    }
+    // S252 (BE-6/BE-12): the shared find-or-create replaces this route's private
+    // exact-match copy — race-safe on UNIQUE(user_id, name) (the H1 ON CONFLICT
+    // recipe) and NOCASE-consistent with setTaskTags (no more "ui/ux" next to
+    // "UI/UX"). Response shape unchanged: {ok:true,id}, 201.
+    const tagId = await findOrCreateTag(cfg, user.id, body.name, body.color)
     await cfg.db.execute('INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) VALUES (?, ?)', [task.id, tagId])
     // S30 (B2 + B3): keep usage honest + the FTS text in step with the new link.
     await refreshTagUsage(cfg, [tagId])
@@ -1302,13 +1299,9 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
-    const found = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ?', [user.id, body.name])
-    const tagId = found[0]?.id ?? uuid()
-    if (!found.length) {
-      await cfg.db.execute('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [
-        tagId, user.id, body.name, body.color ?? (await tagColorFor(cfg, user.id)), new Date().toISOString(),
-      ])
-    }
+    // S252 (BE-6/BE-12): the shared find-or-create replaces this route's private
+    // exact-match copy — same shape as the task-tags route above. {ok:true,id}, 201.
+    const tagId = await findOrCreateTag(cfg, user.id, body.name, body.color)
     await cfg.db.execute('INSERT OR IGNORE INTO project_tags (project_id, tag_id) VALUES (?, ?)', [p.id, tagId])
     // S30 (B2): project chips count toward usage too — the label manager totals both.
     await refreshTagUsage(cfg, [tagId])

@@ -371,27 +371,53 @@ export function normalizeTagNames(names: string[]): string[] {
   return out
 }
 
+/** S252 (audit BE-6 + BE-12): the ONE shared tag find-or-create — race-safe AND
+ *  case-consistent. Every tag-attaching site (task tags add, project tags add,
+ *  setTaskTags' create arm) resolves ids through here; the three private copies
+ *  (two exact-match in devboard.ts, one NOCASE in setTaskTags) are gone.
+ *
+ *  Layer 1 (BE-12 — case twins): a COLLATE NOCASE find-first reuses the row the
+ *  first spelling created ("UI/UX" and "ui/ux" are the SAME label — the
+ *  normalizeTagNames grammar); ORDER BY created_at LIMIT 1 picks the OLDEST row
+ *  deterministically if legacy exact-case twins already exist (the
+ *  UNIQUE(user_id, name) index of 0003 is case-sensitive, so twins are possible
+ *  in old data and are never reconciled — write-time reuse is the rule).
+ *
+ *  Layer 2 (BE-6 — the race): the insert is the H1 recipe already proven at
+ *  projects/index.ts (2026-09-10) — INSERT ... ON CONFLICT(user_id, name) DO
+ *  UPDATE SET usage_count = tags.usage_count RETURNING id — so a double-click /
+ *  offline-queue replay where both requests miss the find still resolve to ONE
+ *  id instead of racing the UNIQUE constraint into a 500 (the DO UPDATE is a
+ *  values-identical no-op; refreshTagUsage, which every caller runs after, is
+ *  the honest keeper of the count). */
+export async function findOrCreateTag(cfg: Config, userId: string, name: string, color?: string): Promise<string> {
+  const found = await cfg.db.query<{ id: string }>(
+    'SELECT id FROM tags WHERE user_id = ? AND name = ? COLLATE NOCASE ORDER BY created_at LIMIT 1',
+    [userId, name],
+  )
+  if (found[0]) return found[0].id
+  const rows = await cfg.db.query<{ id: string }>(
+    `INSERT INTO tags (id, user_id, name, color, usage_count, created_at)
+     VALUES (?, ?, ?, ?, 0, ?)
+     ON CONFLICT(user_id, name) DO UPDATE SET usage_count = tags.usage_count
+     RETURNING id`,
+    [uuid(), userId, name, color ?? (await tagColorFor(cfg, userId)), new Date().toISOString()],
+  )
+  return rows[0].id
+}
+
 // Find-or-create each tag by name (user-scoped), then make the task's link set EXACTLY
 // these names: add missing links, drop links not in the set. [] clears all tags;
 // the caller only invokes this when the body carried a tags array.
 // S30: after the link sync this also (a) refreshes usage_count for every touched tag
 // (B2) and (b) rewrites the task's search_tags so the FTS index follows (B3/0051).
+// S252 (BE-6/BE-12): the create arm resolves through the shared findOrCreateTag —
+// same NOCASE semantics this helper always had, now with the ON CONFLICT race belt.
 export async function setTaskTags(cfg: Config, userId: string, taskId: string, names: string[]): Promise<TaskTagJoin[]> {
   const wanted = normalizeTagNames(names)
   const keepIds: string[] = []
   for (const name of wanted) {
-    // COLLATE NOCASE: "UI/UX" and "ui/ux" are the SAME label — the lookup reuses the
-    // row the first spelling created instead of forking a case twin.
-    const found = await cfg.db.query<{ id: string }>('SELECT id FROM tags WHERE user_id = ? AND name = ? COLLATE NOCASE', [userId, name])
-    if (found[0]) {
-      keepIds.push(found[0].id)
-      continue
-    }
-    const id = uuid()
-    await cfg.db.execute('INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES (?, ?, ?, ?, 0, ?)', [
-      id, userId, name, await tagColorFor(cfg, userId), new Date().toISOString(),
-    ])
-    keepIds.push(id)
+    keepIds.push(await findOrCreateTag(cfg, userId, name))
   }
   const existing = await cfg.db.query<{ tag_id: string }>('SELECT tag_id FROM dev_task_tags WHERE task_id = ?', [taskId])
   const keep = new Set(keepIds)

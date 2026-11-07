@@ -36,10 +36,15 @@ const PUBLIC = join(ROOT, 'public')
 // never ran CI; pull requests do), breaching the budget by 19 KB. Raised to
 // 2,340 KB (+21 KB headroom, ~0.9%) in the S248 Phase 9 merge round: the growth
 // is the intentional feature surface, every entry was reviewed, and the tight
-// margin keeps accidental >21 KB additions red. Ratchet DOWN on deliberate
-// shrinks (e.g. PERF-8's Login.jpg → WebP); never raise it without a written
+// margin keeps accidental >21 KB additions red. Raised to 2,360 KB (+19 KB) in
+// the S250 strategies round: the Strategy → Sprint → Task tier measured 2,341 KB
+// — 1 KB over — on its first CI run (sprint-page.js's section + dialogs +~6 KB,
+// devboard.js's wrappers +~2 KB, the st.* dictionaries +~3 KB, devboard.css
+// +~3 KB — every entry reviewed, the growth is the feature). Same doctrine:
+// ratchet DOWN on deliberate shrinks (e.g. PERF-8's Login.jpg → WebP); never
+// raise it without a written
 // reason in the commit message.
-const BUDGET_BYTES = 2_340 * 1024
+const BUDGET_BYTES = 2_360 * 1024
 
 if (!existsSync(SW_PATH)) {
   console.error('FAIL: public/sw.js not found.')

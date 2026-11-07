@@ -713,16 +713,26 @@ export function devboardRoutes(cfg: Config) {
     if (!p) return errJson(c, ErrorCode.not_found)
     const id = uuid()
     const now = new Date().toISOString()
-    const count = await cfg.db.query<{ n: number }>('SELECT COUNT(*) AS n FROM sprints WHERE project_id = ?', [p.id])
-    let name = body.name ?? `Sprint ${(count[0]?.n ?? 0) + 1}`
     // S240 (0065 — spec §4.3): the auto-generated name must ALSO clear the NEW
     // case-insensitive uniqueness rule — bump past any collision instead of 409ing a
     // nameless create (the legacy timeline creates drafts with no name; old clients
     // must keep getting 201s). Bounded: 50 tries, then the duplicate answer wins.
+    // S252 (BE-2): ONE sibling-names query + a JS bump replaces the old loop of up
+    // to 51 sequential sprintNameTaken round trips — same lower(trim(name))
+    // comparison grammar on both sides, same bound, same fallback to the 409 gate
+    // below. The row count doubles as the old COUNT(*) base number (identical
+    // predicate, so rows.length === the count the separate query used to return).
+    let name: string
     if (body.name === undefined) {
-      for (let bump = 1; bump <= 50 && (await sprintNameTaken(cfg, p.id, name)); bump++) {
-        name = `Sprint ${(count[0]?.n ?? 0) + 1 + bump}`
+      const rows = await cfg.db.query<{ name: string }>('SELECT name FROM sprints WHERE project_id = ?', [p.id])
+      const taken = new Set(rows.map((r) => r.name.trim().toLowerCase()))
+      const base = rows.length + 1
+      name = `Sprint ${base}`
+      for (let bump = 1; bump <= 50 && taken.has(name.trim().toLowerCase()); bump++) {
+        name = `Sprint ${base + bump}`
       }
+    } else {
+      name = body.name
     }
     // 0034: sprints are created as DRAFTS (is_draft=1) — the timeline plans on the draft
     // and /start promotes it. One draft at a time per project; starting it is a separate,

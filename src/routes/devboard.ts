@@ -24,7 +24,6 @@ import { jsonBody, etag } from '../lib/http'
 import { getOwnedProject, toastHtml } from '../lib/html'
 import { localeOf, trFor } from '../lib/i18n'
 import { uuid } from '../lib/ids'
-import { executeIn } from '../lib/inchunk'
 import type { Config, UserRow, DevTaskRow, SprintRow, TagRow, StrategyRow } from '../types'
 import { categoriesUserScoped, isValidCatPair, normCatName, type CategoryRow } from '../lib/categories'
 import { errJson, ErrorCode } from '../lib/errors'
@@ -198,6 +197,7 @@ import {
   setTaskTags,
   taskTagsForProject,
   findOrCreateTag, // S252 (BE-6/BE-12): the ONE shared race-safe + case-consistent tag resolver
+  type TaskTagJoin, // S252 (BE-5a): the archive-done link fold's row shape
   refreshTagUsage,
   syncTaskSearchTags,
   PRIO_ORDER_SQL,
@@ -488,29 +488,49 @@ export function devboardRoutes(cfg: Config) {
     // BEFORE the dev_task_tags rows cascade away — restore relinks them by name, so a
     // done task comes back labeled, not stripped. Priority already survived; labels now
     // do too (the flat join is task_id-keyed, so group once per task here).
-    const links = await taskTagsForProject(cfg, p.id)
+    // S252 (BE-5a): the link fetch filters SQL-side by the SAME done-task predicate
+    // (no id IN list → no D1 param cap, and no over-fetch of every link in the
+    // project), and the fold is Set-keyed — the old per-row tasks.find scan was the
+    // audit's O(n²). The Set check stays as a belt for a status flip racing the two
+    // reads (snapshot set and delete set must agree).
+    const links = await cfg.db.query<TaskTagJoin>(
+      `SELECT tt.task_id, tg.id, tg.name, tg.color FROM dev_task_tags tt
+       JOIN dev_tasks t ON t.id = tt.task_id JOIN tags tg ON tg.id = tt.tag_id
+       WHERE t.project_id = ? AND t.status = 'done' ORDER BY tg.name`,
+      [p.id],
+    )
+    const taskIds = new Set(tasks.map((tk) => tk.id))
     const tagsByTask = new Map<string, { name: string; color: string }[]>()
     for (const row of links) {
-      const onlyDone = tasks.find((tk) => tk.id === row.task_id)
-      if (!onlyDone) continue // only the tasks being archived carry links
+      if (!taskIds.has(row.task_id)) continue // only the tasks being archived carry links
       const list = tagsByTask.get(row.task_id) ?? []
       list.push({ name: row.name, color: row.color })
       tagsByTask.set(row.task_id, list)
     }
     const now = new Date().toISOString()
-    // Insert into project_archives, then delete from dev_tasks (the dev_task_tags rows
-    // cascade via ON DELETE CASCADE — the snapshot above is what preserves the labels).
-    const touchedTagIds = links.filter((l) => tagsByTask.has(l.task_id)).map((l) => l.id)
-    for (const task of tasks) {
-      const snapshot = tagsByTask.get(task.id) ?? []
-      await cfg.db.execute(
-        `INSERT INTO project_archives (id, project_id, title, status, priority, category_id, sprint_id, done_at, original_created_at, archived_at, tags) VALUES (?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?)`,
-        [task.id, p.id, task.title, task.priority, task.category_id, task.sprint_id, task.done_at, task.created_at, now, JSON.stringify(snapshot)],
-      )
-    }
-    const ids = tasks.map((t) => t.id)
-    // AP-20: chunked — archiving a done-task backlog can exceed 99 rows (D1 param cap).
-    await executeIn(cfg.db, 'DELETE FROM dev_tasks WHERE id IN {{IN}}', [], ids)
+    const touchedTagIds = links.filter((l) => taskIds.has(l.task_id)).map((l) => l.id)
+    // S252 (BE-10): snapshot INSERTs + the delete run in ONE cfg.db.transaction,
+    // mirroring /finish's pattern. The old insert-loop-then-delete shape left
+    // partial archive rows behind whenever anything failed between them — and a
+    // retry then hit the task-id PRIMARY KEY conflict forever. Atomic now: any
+    // failure rolls the whole move back (tasks stay on the board, no archive rows).
+    // Reads stay OUTSIDE the tx (the Db transaction convention — write-only batch).
+    await cfg.db.transaction(async (tx) => {
+      for (const task of tasks) {
+        const snapshot = tagsByTask.get(task.id) ?? []
+        tx.sql(
+          `INSERT INTO project_archives (id, project_id, title, status, priority, category_id, sprint_id, done_at, original_created_at, archived_at, tags) VALUES (?, ?, ?, 'done', ?, ?, ?, ?, ?, ?, ?)`,
+          [task.id, p.id, task.title, task.priority, task.category_id, task.sprint_id, task.done_at, task.created_at, now, JSON.stringify(snapshot)],
+        )
+      }
+      // AP-20: chunked — archiving a done-task backlog can exceed 99 rows (D1 param cap).
+      // (tx is the queued-statement Tx, so executeIn's Db-shaped helper can't ride
+      // inside; the identical 99-id chunking runs inline.)
+      for (let i = 0; i < tasks.length; i += 99) {
+        const part = tasks.slice(i, i + 99)
+        tx.sql(`DELETE FROM dev_tasks WHERE id IN (${part.map(() => '?').join(',')})`, part.map((tk) => tk.id))
+      }
+    })
     // S30 (B2): the cascade just removed the link rows — recompute those tags' usage.
     await refreshTagUsage(cfg, touchedTagIds)
     await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, p.id])

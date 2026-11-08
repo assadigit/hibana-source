@@ -584,8 +584,8 @@
           // rest in a hidden .pd-title-rest span INSIDE the title element (so
           // textContent keeps reading the FULL title — copy/export, delete-confirm,
           // the wand all consume it), + a read-more button. The two boards read as ONE
-          // system now.
-          const TITLE_CLAMP = 150
+          // system now. (S254/FE-14: the local TITLE_CLAMP const was dead — the clamp
+          // lives in chip-render.js's titleAttrs/previewHtml/readMoreBtn below.)
           // Session 23 (user request): titles may carry fenced ``` CODE blocks, **bold**
           // and manual line breaks — SAME renderer as project.html / routes/projects.ts:
           // fence lines open/close a <code class="t-code" dir="ltr"> mono container with

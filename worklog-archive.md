@@ -4305,3 +4305,114 @@ session's eleven + this session's probe).
 
 **Next:** Phase 4 (S255) — Payload & network diet (BE-3, BE-25, FE-4, FE-7, FE-16),
 the island round WITH the full desktop re-pin.
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session S255 — Phase 4: Payload & network diet (2026-11-08)
+
+**The owner's ask, verbatim:** the recovery ask — "I lost previous session of Hibana
+source and desktop. We need to catch up and continue it from where it's left … we were
+in middle of optimization of things based on audit." The §13 next-session prompt for
+Phase 4 (S255) of the owner-approved AUDIT-REMEDIATION-SPEC — "stop shipping bytes
+nobody renders; make repeat loads 304."
+
+**The recovery (this session started COLD):** re-cloned both repos, verified
+local == origin on both (nothing lost — the interrupted-session risk did not
+materialize; S254 had closed clean at `c556e3a1`), re-read AGENTS.md + the whole
+spec top to bottom, re-verified the Phase 4 anchors against HEAD, ran the baseline
+`npm run verify` (990/990, all gates PASS) BEFORE touching anything.
+
+**The round that shipped (all additive; the DEFAULT board payload byte-identical):**
+- **BE-3** (`010bd405`): the additive `GET /api/sprints/:id/doc` (the full sprint row,
+  owner-gated through ownedSprint — a foreign id 404s) + the board GET's opt-in
+  `?lean=1`: `sprints[].description` omitted, the derived `sprints[].doc_checked`
+  rides in its place (the EXACT `- [x] ` line grammar the sprint chip's ☑ stat has
+  always folded client-side — one server seam, `sprintDocCheckedCount`, so lean and
+  default consumers agree forever). 4 regression pins (lean shape, doc endpoint
+  ownership/404, the distinct-ETag no-cross-304 contract).
+- **BE-25** (`d2d54981`): the board GET's **version-stamp weak ETag** — ONE
+  pre-assembly probe (`boardVersionStamp`, devboard-helpers.ts: COUNT+MAX(updated_at)
+  per stamped table + CONTENT fingerprints for the no-stamp tables: the user's whole
+  tag library (no updated_at column — renames/recolors/usage moves are caught by
+  content), the payload-visible categories set (incl. enabled + sort_order), the
+  per-project screenshots (id, task_id — pin/unpin/re-pin), the dep/link COUNTs, and
+  the project row the route already holds) → a matching If-None-Match answers **304
+  with ZERO assembly**. The tag carries the lean marker (`W/"b…"` vs `W/"l…"`) so the
+  variants never cross-304. The 200s carry the stamp tag (the desktop poll's
+  `client.go get()` stores it; `getFresh`/RequestFresh never sends a validator and
+  never sees a 304 — pinned). **The stamp-coverage fix:** the reorder path now stamps
+  `updated_at` (the ONE sort_order writer the 0061 doctrine never covered — without
+  it a drag-reorder could 304 past the new order). 4 pins incl. the per-mutation
+  stamp-move table (task PATCH / tag link / sprint PATCH / **reorder** / sprint
+  start) + the tag-RENAME fingerprint case.
+- **The island half** (`69284ee6`): `B().load(pid, { lean: true })` — the /kanban +
+  /sprint boots, every reload, and the project-switch preload all ride `?lean=1`
+  through the api() choke point (**the seam count STAYED 7** — both new fetch needs
+  ride api(); the spec's anticipated 7→8 proved unnecessary, a strictly smaller
+  desktop surface). `sprintDocChecked` reads BOTH payload shapes (variant-blind ☑
+  stat); `sprintDoc(id)` is the doc-fetch affordance riding the same choke point.
+  **FE-4**: `pdRepaintColumns` re-renders from the LEAN BOARD payload — the old flow
+  refetched the WHOLE 13-query `/api/projects/:id` detail (hurdles, links, ALL
+  screenshots, history, notes, canvas backlinks, backlog) to repaint ≤2 kanban
+  columns; the board rows fold through the SAME server helpers (boardTaskRows /
+  taskTagsForProject / taskDepsForProject), so field parity is by construction —
+  `shot_count` IS the pin count. **FE-7**: the sprint timeline's hidden duplicate
+  `.sp-bar` copies of every task RETIRED (opacity:0 + pointer-events:none +
+  height:0 — provably inert: no JS query reads .sp-bar, the dots carry the
+  data-bar/data-task drag affordances, the [data-trim] grips stopped existing
+  renders ago) — pure dead DOM, one node per task per render. **The v462 cache-bust
+  choreography**: devboard.js v38→v39 (3 pages + 3 injector literals), board-page.js
+  v35→v36, sprint-page.js v29→v30, project-page.js v86→v87; SW v461→v462 + the one
+  SHELL re-fetch.
+- **FE-16** (rode `69284ee6`): API-AND-SYNC-CONTRACT.md — `task_tags` documented as
+  DESKTOP-LOAD-BEARING (never remove: the Go mirror's BoardPayload decodes it;
+  unknown-to-web ≠ removable) + the ?lean=1 / doc-endpoint / ETag-304 contracts
+  recorded in §3.2.
+- **The carrier re-pins** (`e244f8b9`): sw v462 + devboard v39 + board-page v36 +
+  the injector literals across the 7 history-pinned suites (s237/s238/s242/s243/
+  s244/s245/s246/s247), and the **s246 embedded-fold pin re-recorded to FE-4's new
+  doctrine** (the boot + expand folds keep the detail pool; the MUTATION repaint
+  rides the lean board payload — one board pull, never the 13-query detail refetch).
+
+**The honest ladder record:** `npm run verify` exit 0 — tsc strict 0 errors, eslint
+0 warnings, **vitest 998/998** (990 + 8 new), prod build, portability, fn-shape
+(after the per-round allowlist re-pins: the board GET grew 79→113 lines with the
+stamp block — one endpoint flow, one screen; the four drifted pins re-lined),
+import-boundaries all PASS; cache-bust PASS (with the FE-20 cross-check); i18n
+**1707/1707** (no new UI strings — the round is data-path only); precache PASS
+(+12 KB headroom); bundle PASS; `node --check` on all 4 touched JS. e2e **515/515**
+as four sequential quarter-shards (123+106+162+124, each on its own port+DB) — ZERO
+failures, zero flakes this round.
+
+**The live probe** (`scripts/live-s255-probe.mjs`, `69187e8b` — 46 checks): the
+carriers (SW v462 + every wired /dist asset resolving), the lean/default payload
+shapes (description absent ONLY under lean; doc_checked = the planted 40), **the
+diet measurement** (the doc-heavy probe project: default 13,661B vs lean 1,915B —
+**86% saved** on prod; 91% on dev/local), the ETag family (both variants 304 on
+their own validator, never cross, fresh-never-304s, the mutation-moves-the-stamp
+round-trip), the doc endpoint (full row + 404), and the browser legs (/kanban +
+/sprint: exactly ONE board GET each and it carries ?lean=1; the sprint chip's ☑ 40
+renders from doc_checked with NO description shipped; /project.html: the synthetic
+cross-box drop fires the repaint's ONE `devboard?lean=1` GET with ZERO second
+`/api/projects/:id` detail refetch, the card lands; zero page errors). **Local
+rehearsal 46/46** (scratch server + seeded user — the honest iterations: the
+syntax slip in the probe's carrier loop, the draft-sprint-not-on-the-timeline
+lesson, and the dragstart-on-the-inner-.pd-task contract), **dev 46/46** (seeded
+probe user `probe-s255-dev@hibana.local`, purged after: probe_users 0,
+orphan_archives 0 — the DB-3 sweep rides the purger), **prod 46/46** (the test
+account; the probe project soft-deleted — trash). Prod error_log: **0 rows** in
+the session window.
+
+**Desktop (§12.3):** the full re-pin — PIN_REF/PIN_PACKAGE_VERSION to the S255 web
+SHA + v0.4.1.48, anchor re-records per sync-island's loud failures, desktop.yml
+WEB_REF + WEB_VERSION together, ALL 14 probes, push → autorelease → verify. The Go
+sync stays on the DEFAULT payload (the spec's "keep desktop on the default payload"
+— its conditional `get()` poll is the 304 cheap path's beneficiary; adopting lean
+client-side in the mirror is a later optional round, noted).
+
+**Version:** 0.4.1.47 → **0.4.1.48**. Commits: `010bd405…69187e8b` + this close.
+
+**Next:** Phase 5 (S256) — CSS/asset diet (FE-5 per-page bundles, FE-13 the
+byte-equal twins), the heaviest re-pin (HTML link sets) — the ratchet only goes
+DOWN after it.

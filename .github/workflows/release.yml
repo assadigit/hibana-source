@@ -6,7 +6,7 @@
 # the version-tag guard makes the whole thing idempotent anyway.
 #
 # The release notes are the project's OWN Changelogs row for the version
-# (docs/project-kanban/Changelogs.md — the row is the changelog), falling
+# (Changelogs.md at the repo root — the row is the changelog), falling
 # back to the commit range since the previous tag. The web app itself is
 # deployed live to hibana.ir + projects.hibana.ir by the CD lane; this
 # GitHub Release is the provenance + download surface for the source tree.
@@ -54,7 +54,7 @@ jobs:
           #      newest-first, so the first hit is the newest row for the
           #      version), else the commit range since the previous tag. ----
           NOTES="Hibana web v$VERSION — deployed live on hibana.ir + projects.hibana.ir by the CD lane."
-          ROW="$(grep -m1 "| v$VERSION " docs/project-kanban/Changelogs.md || true)"
+          ROW="$(grep -m1 "| v$VERSION " Changelogs.md || true)"
           if [ -n "$ROW" ]; then
             BODY="$(printf '%s' "$ROW" | cut -d'|' -f4-)"
             NOTES="Hibana web v$VERSION — deployed live on hibana.ir + projects.hibana.ir by the CD lane.

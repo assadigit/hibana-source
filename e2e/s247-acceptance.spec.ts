@@ -211,9 +211,15 @@ test('§24-6 — the SAME instant displays both ways: the EN card row and the FA
   // 2026-11-21T12:00Z → 'Due Nov 21 · N days left' — the day NAME is the fixed
   // instant's (deterministic); the DAYS-LEFT is DERIVED (the S250 fix: the count
   // was hardcoded '15' from the round's own 2026-11-06 run and broke overnight —
-  // a fixed instant decays one day per day). Re-pin the whole test after the
+  // a fixed instant decays one day per day). S252 de-flake: the derivation now
+  // mirrors the APP's calendar-day difference (localDayIdx in devboard.js's
+  // deadlineLabel — midnight-to-midnight, the fractional 'now' cancels) instead
+  // of Math.ceil on raw milliseconds, which disagreed with the app by one day
+  // whenever the suite ran between 00:00 and ~12:00 UTC (proven pre-existing on
+  // 8118e608 — not an S252 regression). Re-pin the whole test after the
   // instant passes (Nov 21 2026 → Overdue).
-  const daysLeft = Math.ceil((Date.parse('2026-11-21T12:00:00.000Z') - Date.now()) / 86_400_000)
+  const localDayIdx = (ms: number) => { const d = new Date(ms); return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86_400_000) }
+  const daysLeft = localDayIdx(Date.parse('2026-11-21T12:00:00.000Z')) - localDayIdx(Date.now())
   await expect(enRow).toContainText('Nov 21')
   await expect(enRow).toContainText(daysLeft + ' days left')
 

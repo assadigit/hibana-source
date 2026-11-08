@@ -640,3 +640,80 @@ geometry intact; archive-done → {archived:2} with the label snapshot riding al
 
 **Next:** Phase 2 (S253) — Database health, migration 0067 (backup ritual FIRST, no
 exceptions).
+
+## Session S253 — Phase 2: Database health, migration 0067 (2026-11-08)
+
+**The owner's ask, verbatim:** the §13 next-session prompt for Phase 2 (S253) of the
+owner-approved AUDIT-REMEDIATION-SPEC — "Step 0 — the backup ritual (§12.1), NO
+exceptions … If any step cannot run, STOP and report."
+
+**Step 0 — the backup ritual, all green:** fresh dumps of BOTH D1s
+(`/home/z/hibana-backups/pre-0067-{dev,prod}-20261108.sql` + manifests), restore-verified
+(PRAGMA foreign_keys=OFF, integrity_check ok, row counts recorded), `bookmark:prod` +
+`bookmark:dev` (§9 rows, schema 65), the automated lane fresh (hibana-safe latest
+snapshot 5.23 h old < 7 h). The belt-first probes rode the restore verification: ZERO
+sprint/strategy/tag case-twins, ZERO multi-drafts on either DB — nothing to park, so
+0067 carries indexes only. Found on the way: 1 orphan archive row in prod (the spec's
+known one), 2 in dev (the s252 live probe's own residue — the probe-user purge cascaded
+the project away but 0046's missing FK let the archives survive; DB-3's exact bug class).
+
+**Migration 0067** (`3572a9ca`, additive-only, IF NOT EXISTS-guarded): the four audit
+indexes — idx_project_archives_sprint (DB-1: the only EQP-verified full SCAN, now
+`SEARCH … USING INDEX`, proven locally before touching remotes), idx_sprints_one_draft
+(partial unique), idx_sprints_project_name + idx_strategies_project_name (expression
+uniques on lower(trim(name))). Applied dev first (schema 65→66, row-count parity
+byte-identical, four indexes present), then prod with a FRESH bookmark:prod first
+(00002043…). Zero row loss on either side.
+
+**The code round, one commit per finding:**
+- **BE-8/DB-2 catch-and-map** (`00daad15`): `uniqueViolationOn(err, …needles)` in
+  devboard-helpers + try/catch at all SIX sprint/strategy create+rename writes — the
+  0067 belts map to the pre-checks' own 409s (duplicate / draft_exists / with the
+  winner's id; the with-dates INSERT and PATCH-reopen arms also catch the 0065
+  one-active belt → sprint_active_exists, same class, same sites). Never a raw 500.
+- **DB-3** (`6613963d`): `DELETE FROM project_archives` added to all THREE purge sites
+  (projects hard-delete, admin/cron 7-day purge, settings empty-trash — each BEFORE the
+  projects DELETE, subquery-shaped). Purge-parity pins ×3 (one per site, row-count
+  asserted). The live orphan sweep post-bookmark: prod 1 row, dev 2 rows, counts in §9
+  (bookmarks 00002044…/0000119b…). **This is the plan's only destructive-semantics
+  change** — flagged in the Changelogs row.
+- **DB-4** (`5b553409`): DEBT.md entry for the 0060 folder_id FK loss (latent, app-level
+  cleanup covers it; removal = a future owner-approved rebuild).
+- **BE-1 + BE-5b** (`07b56233`): setTaskTags is BATCHED — one NOCASE-IN find
+  (oldest-row-wins), one palette read (tagColorCounts/leastUsedPaletteColor extracted,
+  sequential per-name color pick preserved), one chunked multi-row
+  INSERT…ON CONFLICT…RETURNING create, executeIn-chunked link sync; a 12-tag save drops
+  from ~30 sequential round trips to a fixed ~6-9. Response shape byte-identical.
+  Archives GET capped LIMIT 200 + additive `?offset=` (the quicknotes grammar; absence
+  = page 0 — the island + desktop mirror are served exactly as before).
+
+**The honest test record:** 990/990 vitest (from 976: +11 s253 pins, +3 purge-parity,
+plus one RE-PIN — the S240 "legacy case-twins stay readable" pin seeded a same-project
+twin pair directly, a state 0067 makes structurally impossible BY DESIGN; the pin now
+asserts the DB-layer refusal + the write-gate 409 + clean reads, and the s247
+lock-step matrix citation follows it). fn-shape needed the per-round allowlist re-pin
+(five devboard handlers moved/grown + the new setTaskTags@72 pin — the S252 doctrine).
+The e2e round: the fresh sandbox lacked the Playwright browser (255 instant failures —
+`npx playwright install chromium` fixed it, not a code issue), then 510/510 green
+(shard 1: 257/257 in one run; shard 2: 249 ✓ when the tool timeout killed the process
+at test 249/253, the remaining viewport file re-run 15/15 — every one of the 510
+verified, zero failures). verify exit 0, cache-bust PASS (backend-only), i18n
+1707/1707, precache +19 KB headroom, bundle PASS.
+
+**Live:** CD deployed dev+prod on `c03d6dc9` (CI green). `scripts/live-s253-probe.mjs`
+(24 checks — schema 66 in the health probe, the belt 409s create+rename both tiers,
+BE-1 shape + NOCASE reuse, BE-5b paging, clean deletes): local rehearsal 24/24, dev
+24/24 (seeded probe user, purged after — probe users 0, dev orphans 0, baseline counts
+restored), prod 24/24 (the test account). Prod error_log: ZERO rows in the session
+window. The dev probe-user purge now sweeps the archives the cascade can't reach (the
+S252 seeder's gap — its own probe residue was today's dev orphans).
+
+**Desktop: ZERO changes** (spec §5 step 8) — web-D1 indexes are invisible to the Go
+mirror, no island byte changed, the archives default payload is unchanged (the cap
+sits above prod's 149-row max; ?offset= is additive opt-in). No re-pin, no release.
+
+**Version:** 0.4.1.45 → **0.4.1.46**. Commits: `3572a9ca…40eb971e` (0067 + five fix
+commits + allowlist + probe + release bump).
+
+**Next:** Phase 3 (S254) — Interaction performance (FE-2/3/8/1/10/12/14/15/19/20), the
+island round WITH the full desktop re-pin.

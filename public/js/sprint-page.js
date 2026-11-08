@@ -1279,7 +1279,9 @@
         ctx.on('click', (e) => {
           const t = e.target.closest('[data-sp-detail-open-task]')
           if (!t) return
-          B().openEditor(t.dataset.task, { onSaved: () => { const id = sprintDetailCtx; closeSprintDetail(); reload().then(() => { if (id) openSprintDetail(id, 'tasks') }) } })
+          // S254 (FE-1): the editor's save MERGED into state (patchTask) — the pure
+          // render + the detail reopen replace the full board refetch.
+          B().openEditor(t.dataset.task, { onSaved: () => { const id = sprintDetailCtx; closeSprintDetail(); render(); if (id) openSprintDetail(id, 'tasks') } })
         })
 
         // ---- floating date tooltip shared by every drag -----------------------------
@@ -1377,7 +1379,9 @@
                     const body = (cur >= today && task.status !== 'done') ? { end_at: null } : { end_at: dayIso(cur) }
                     await B().patchTask(task.id, body)
                   }
-                  await reload()
+                  // S254 (FE-1): patchTask MERGED the trim into state — the render
+                  // is pure (no board GET; the timeline geometry recomputes from state)
+                  render()
                 } catch { window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err'); await reload() }
               },
             }
@@ -1725,7 +1729,8 @@
           const edit = e.target.closest('[data-cat-edit]')
           if (edit) { openCatPop(edit); return }
           const bar = e.target.closest('[data-bar],[data-sptask]')
-          if (bar && !e.target.closest('[data-trim]')) B().openEditor(bar.dataset.task, { onSaved: reload })
+          // S254 (FE-1): the editor's save MERGES into state (patchTask) — pure render
+          if (bar && !e.target.closest('[data-trim]')) B().openEditor(bar.dataset.task, { onSaved: render })
           const newCat = e.target.closest('[data-new-category]')
           if (newCat) {
             const form = document.querySelector('[data-cat-form]')
@@ -1758,8 +1763,10 @@
           if (!title) return
           const catId = input.dataset.quickadd
           try {
+            // S254 (FE-1): createTask MERGES the ack into state (id + auto-sprint
+            // + tags) — the render is pure, no board GET.
             await B().createTask({ title, status: 'idea', category_id: catId === 'none' ? undefined : catId })
-            await reload()
+            render()
           } catch { window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err') }
         })
 
@@ -2182,7 +2189,7 @@
                       const catId = target.id === 'none' ? null : target.id
                       if (task.category_id !== catId) await B().patchTask(task.id, { category_id: catId })
                     }
-                  } finally { await reload() }
+                  } finally { render() } // S254 (FE-1): the merge already landed — pure render
                   return
                 }
               }
@@ -2196,7 +2203,8 @@
               }
               const ids = [...sideEl.querySelectorAll('[data-sptask]')].map((x) => x.dataset.sptask)
               if (ids.length > 1) await B().reorderTasks(ids)
-              await reload()
+              // S254 (FE-1): the category move + reorder MERGED into state — pure render
+              render()
             } else if (kind === 'bar' && target && taskId) {
               const task = B().findTask(taskId)
               if (task) {
@@ -2209,7 +2217,8 @@
                   const catId = target.id === 'none' ? null : target.id
                   if (task.category_id !== catId) await B().patchTask(task.id, { category_id: catId })
                 }
-                await reload()
+                // S254 (FE-1): the assignment/patch MERGED into state — pure render
+                render()
               }
             }
           } catch { window.hibana && window.hibana.toast(_t('sparks.saveFailed', "Couldn't save"), 'err'); await reload() }

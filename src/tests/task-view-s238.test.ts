@@ -55,9 +55,9 @@ describe('S238 focus-core — the FULL Esc peel (view → sheet → focus)', () 
 })
 
 describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
-  it('board.html carries the bumped carriers: board-page v35, focus-core v2 (BEFORE devboard), devboard.css v46, polish-batch v30, quicknotes v51, i18n-en v111, i18n.js v164 (S254 moved the ladder — the interaction performance round; the pin intent is preserved, the versions moved with the carriers)', () => {
+  it('board.html carries the bumped carriers: board-page v35, focus-core v2 (BEFORE devboard), devboard.css v46, polish-batch v30, quicknotes v51, i18n-en v111, i18n.js v164 (S255 moved the ladder — the payload & network diet round; the pin intent is preserved, the versions moved with the carriers)', () => {
     const html = readPublic('board.html')
-    expect(html.includes('/js/board-page.js?v=35')).toBe(true)
+    expect(html.includes('/js/board-page.js?v=36')).toBe(true)
     expect(html.includes('/js/focus-core.js?v=2"')).toBe(true)
     expect(html.indexOf('/js/focus-core.js?v=')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
     expect(html.includes('/css/devboard.css?v=46')).toBe(true)
@@ -175,10 +175,10 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=105')).toBe(true)
   })
 
-  it('sw.js is at hibana-v461 and the round notes the carrier bumps (S254 moved the ladder — the interaction performance round; the pin intent is preserved)', () => {
+  it('sw.js is at hibana-v462 and the round notes the carrier bumps (S255 moved the ladder — the payload & network diet round; the pin intent is preserved)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v461"')).toBe(true)
-    expect(sw.includes('// v461 (S254)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v462"')).toBe(true)
+    expect(sw.includes('// v462 (S255)')).toBe(true)
     // the S238 note stays in the history block (the discipline: every prior entry
     // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v452 (S238)')).toBe(true)

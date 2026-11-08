@@ -31,13 +31,9 @@ const modifiedJs = getModifiedFiles(JS_DIR, '.js')
 const modifiedCss = getModifiedFiles(CSS_DIR, '.css')
 const modified = [...modifiedJs, ...modifiedCss]
 
-if (modified.length === 0) {
-  console.log('PASS: no JS/CSS files modified — cache-bust check skipped')
-  process.exit(0)
-}
-
 // Read all HTML files and build a map: filename → highest ?v=N seen
 const htmlFiles = readdirSync(PUBLIC_DIR).filter((f) => f.endsWith('.html'))
+const jsRefs = new Map() // 'devboard.js' → Set of versions in injector literals only
 const versionMap = new Map() // 'app.js' → Set of version numbers seen across all HTML
 const addRef = (file, version) => {
   if (!versionMap.has(file)) versionMap.set(file, new Set())
@@ -58,8 +54,39 @@ for (const html of htmlFiles) {
 // build's fixpoint loop rewrites these same literals, so they are first-class refs.
 for (const js of readdirSync(JS_DIR).filter((f) => f.endsWith('.js'))) {
   const content = readFileSync(join(JS_DIR, js), 'utf8')
-  const matches = content.matchAll(/['`]\/(?:js)\/([^"'`?]+)\?v=(\d+)['`]/g)
-  for (const m of matches) addRef(m[1], m[2])
+  for (const m of content.matchAll(/['`]\/(?:js)\/([^"'`?]+)\?v=(\d+)['`]/g)) {
+    addRef(m[1], m[2])
+    if (!jsRefs.has(m[1])) jsRefs.set(m[1], new Set())
+    jsRefs.get(m[1]).add(Number(m[2]))
+  }
+}
+
+// S254 (FE-20 — audit remediation Phase 3): the INJECTOR-LITERAL cross-check. The
+// modified-files gate above only fires when a JS/CSS file ITSELF changes — but the
+// documented double-cache bug class is exactly the OTHER order: the HTML tag gets
+// its ?v= bumped while the injector literal inside island JS (ensureLib's
+// inject('/js/devboard.js?v=N') …) is forgotten. The js file is untouched, so that
+// gate can't see the drift; two cache entries of one file ship. This pass compares
+// EVERY injector literal's version against the HTML-referenced version of the same
+// file (lazy-only files — i18n-fa.js, queue.js, image-resize.js — have no HTML ref
+// and are skipped) and fails on any mismatch, bumped or not.
+const htmlRefs = new Map() // 'devboard.js' → Set of versions seen in HTML only
+for (const html of htmlFiles) {
+  const content = readFileSync(join(PUBLIC_DIR, html), 'utf8')
+  for (const m of content.matchAll(/(?:src|href)="\/(?:js|css)\/([^"?]+)\?v=(\d+)"/g)) {
+    if (!htmlRefs.has(m[1])) htmlRefs.set(m[1], new Set())
+    htmlRefs.get(m[1]).add(Number(m[2]))
+  }
+}
+const driftFailures = []
+for (const [file, jsVersions] of jsRefs) {
+  const htmlVersions = htmlRefs.get(file)
+  if (!htmlVersions) continue // lazy-only asset — no HTML reference to hold it to
+  for (const v of jsVersions) {
+    if (!htmlVersions.has(v)) {
+      driftFailures.push(`  ✗ ${file} — injector literal says ?v=${v} but the HTML references ${[...htmlVersions].join(', ')} (two cache entries of one file — the documented double-cache bug class)`)
+    }
+  }
 }
 
 // Check: each modified file must have a ?v= reference, and it must be unique (one version)
@@ -77,15 +104,28 @@ for (const file of modified) {
   // bump manually — this check ensures the reference exists and is consistent.
 }
 
-if (failures.length > 0) {
+if (modified.length === 0 && driftFailures.length === 0) {
+  console.log('PASS: no JS/CSS files modified — cache-bust check skipped (injector literals verified against the HTML ?v=)')
+  process.exit(0)
+}
+
+if (failures.length > 0 || driftFailures.length > 0) {
   console.error('FAIL: cache-bust check found issues:')
   console.error('  Modified JS/CSS files must have a consistent ?v=N query string in HTML.')
+  if (failures.length > 0) {
+    console.error('')
+    failures.forEach((f) => console.error(f))
+  }
+  if (driftFailures.length > 0) {
+    console.error('')
+    console.error('  Injector literals in public/js must ride the SAME ?v= as the HTML tags:')
+    driftFailures.forEach((f) => console.error(f))
+  }
   console.error('')
-  failures.forEach((f) => console.error(f))
-  console.error('')
-  console.error('  Fix: add or bump the ?v=N query on the <script src> or <link href> tag.')
+  console.error('  Fix: add or bump the ?v=N query on the <script src> or <link href> tag AND every injector literal.')
   process.exit(1)
 }
 
 console.log(`PASS: all ${modified.length} modified JS/CSS file(s) have consistent ?v= references`)
 modified.forEach((f) => console.log(`  ✓ ${f}`))
+console.log('  ✓ injector literals match the HTML ?v= on every shared file')

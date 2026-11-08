@@ -2184,14 +2184,27 @@
             el.src = src
             document.head.appendChild(el)
           }
+          // S254 (FE-19, the board twin): a failed head <script> self-injects
+          // immediately (capture-phase resource error) instead of waiting out the
+          // 1.2s poll; the `injected` flag keeps a failed self-injection from
+          // looping and the 9s ceiling still rules.
+          const injectAll = () => {
+            if (injected || window.HibanaBoard) return
+            injected = true
+            inject('/js/devboard.js?v=38') // keep in sync with the <head> tag + sw SHELL
+            if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
+          }
+          const onResErr = (e) => {
+            const el = e.target
+            if (!el || el.tagName !== 'SCRIPT') return
+            const src = String(el.getAttribute('src') || '')
+            if (/\/js\/devboard\.js/.test(src)) injectAll()
+          }
+          window.addEventListener('error', onResErr, true)
           const tick = () => {
-            if (window.HibanaBoard) return resolve(true)
-            if (!injected && waited >= 1200) {
-              injected = true
-              inject('/js/devboard.js?v=37') // keep in sync with the <head> tag + sw SHELL
-              if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali timeline for FA
-            }
-            if (waited >= 9000) return resolve(false)
+            if (window.HibanaBoard) { window.removeEventListener('error', onResErr, true); return resolve(true) }
+            if (!injected && waited >= 1200) injectAll()
+            if (waited >= 9000) { window.removeEventListener('error', onResErr, true); return resolve(false) }
             waited += 150
             setTimeout(tick, 150)
           }

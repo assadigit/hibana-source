@@ -1662,16 +1662,30 @@
             el.src = src
             document.head.appendChild(el)
           }
+          // S254 (FE-19): a head <script> that ERRORS (network 404, a stale deploy's
+          // mismatched ?v=) self-injects IMMEDIATELY — no 1.2s poll wait. Resource
+          // error events don't bubble but DO ride the capture phase to window; only
+          // the board's own lib scripts trip it, and the once-set `injected` flag
+          // keeps a failed SELF-injection from looping (the 9s ceiling still rules).
+          const injectAll = () => {
+            if (injected || window.HibanaBoard) return
+            injected = true
+            inject('/js/devboard.js?v=38') // keep in sync with the <head> tag + sw SHELL
+            if (!window.HibanaFocusCore) inject('/js/focus-core.js?v=2') // S237/S238: the focus + view decision core — keep in sync with the <head> tag
+            if (!window.HibanaChips) inject('/js/chip-render.js?v=14') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
+            if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
+          }
+          const onResErr = (e) => {
+            const el = e.target
+            if (!el || el.tagName !== 'SCRIPT') return
+            const src = String(el.getAttribute('src') || '')
+            if (/\/js\/(devboard|focus-core|chip-render)\.js/.test(src)) injectAll()
+          }
+          window.addEventListener('error', onResErr, true)
           const tick = () => {
-            if (window.HibanaBoard) return resolve(true)
-            if (!injected && waited >= 1200) {
-              injected = true
-              inject('/js/devboard.js?v=37') // keep in sync with the <head> tag + sw SHELL
-              if (!window.HibanaFocusCore) inject('/js/focus-core.js?v=2') // S237/S238: the focus + view decision core — keep in sync with the <head> tag
-              if (!window.HibanaChips) inject('/js/chip-render.js?v=13') // S36: was ?v=1 while the HTML tags say v=2 — two cache entries for one file (the cache-bust gate caught it under the sandbox's mode-bit noise). Aligned; local-dev + SW caches now share ONE url per version. S86: v8 — kept in sync with the <head> tag (previewHtml moved in). S176: v11.
-              if (!window.jalaali) inject('/vendor/jalaali.min.js') // Jalali dates for FA
-            }
-            if (waited >= 9000) return resolve(false)
+            if (window.HibanaBoard) { window.removeEventListener('error', onResErr, true); return resolve(true) }
+            if (!injected && waited >= 1200) injectAll()
+            if (waited >= 9000) { window.removeEventListener('error', onResErr, true); return resolve(false) }
             waited += 150
             setTimeout(tick, 150)
           }

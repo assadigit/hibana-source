@@ -74,7 +74,7 @@ Stage Summary:
 
 Task ID: S168 (folding S160–S167)
 Agent: Z.ai (session 168 — the Ideas-section redesign release: third rebuild, then the owner-authorized release chain)
-Task: the owner's 16-item hibana-ideas-section-spec.md + "Commit and push and deploy" — rebuild the S160–S166 work lost to two sandbox resets (the S167 worklog section was the build manual), run the full gate ladder, ship v0.4.0.0.
+Task: the owner's 16-item docs/hibana-ideas-section-spec.md + "Commit and push and deploy" — rebuild the S160–S166 work lost to two sandbox resets (the S167 worklog section was the build manual), run the full gate ladder, ship v0.4.0.0.
 
 Work Log:
 - REBUILD (P1–P5, all landed): 0063 schema + spark routes (ordering pinned-first, cross-field LIKE+EXISTS search, HX hand-off, banner PUT/GET/DELETE, folder pastel CRUD + DELETE FK sweep, updated_at bumps) · helpers.ts renderers (folderPair, sparkCardHtml, list/sticky fragments, folder header + search empty) · the lean page (public/spark.html + spark-page.js + image-crop.js: field-set, draft store, Save+✓+Ctrl+S, pin, tags/folder/links, gallery + cover, lightbox inside main.shell, hibana:i18n repaints) · sparks-page.js rewrite (debounced search + count, unified DnD, pin toggle, ⋯ menu + promote, folder dialog 16 swatches, banner flow, mobile tap-to-expand) · dashboard.css v31 (+~350 lines, logical props + reduced-motion) + base.css v11 [hidden] reset · +44 i18n keys en+fa · sw.js SHELL +/spark.html (v406).
@@ -2586,11 +2586,11 @@ the result to the repo." Executed as four parallel read-only audit passes
 v0.4.1.23, sw v432, schema 63) + verifier spot-checks on every load-bearing
 number. NO code changed — this round ships two new root docs:
 
-- **SWOT-AUDIT-S198.md** — the full audit: ~98 findings with stable IDs
+- **docs/SWOT-AUDIT-S198.md** — the full audit: ~98 findings with stable IDs
   (PERF-*/SEC-*/HLTH-*/UX-*), evidence file:line + measured numbers, ranked
   weaknesses/opportunities/threats, the needs-owner-approval list (rule 4),
   and the verification record.
-- **SESSION-BRIEF-S199.md** — the execution plan the next session(s) run:
+- **docs/SESSION-BRIEF-S199.md** — the execution plan the next session(s) run:
   S199 "Debt Zero + Trust Gates" (kill the 162-warning baseline + ratchet,
   sw.js VERSION trim 15,959→~200 chars, rotate-s* fold to one generic entry,
   single lockfile, escape-lint gate for the 312 innerHTML sinks, a11y/Lighthouse/
@@ -2611,14 +2611,14 @@ fabric is vendor, not dist); one agent claim corrected during verification
 
 The S197 open-risk list stands (Track B leftovers: Lighthouse exact scores +
 bundle diet, now concretized as UX-1/UX-17 + PERF-7/UX-7; Track C, now
-HLTH-*). NEXT: hand SESSION-BRIEF-S199.md to the next agent.
+HLTH-*). NEXT: hand docs/SESSION-BRIEF-S199.md to the next agent.
 > **Rotation (HLTH-27):** sessions older than the newest 4 live in
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
 ## Session S199 — DEBT ZERO + TRUST GATES (the S198 audit's fix round)
 
-Executed per SESSION-BRIEF-S199.md Batches 1-5 (5 partial), on tree 195bd7e →
+Executed per docs/SESSION-BRIEF-S199.md Batches 1-5 (5 partial), on tree 195bd7e →
 released as v0.4.1.24 (push 1cc4779).
 
 **STATUS: RELEASED.** LIVE hibana.ir @ v0.4.1.24, sw v433, schema 63. CI
@@ -2703,7 +2703,7 @@ CLEAN) → healthchecks both UP (natural ticks).
 
 ## Session S200 — SPEED + DIET (the S198 audit's perf round)
 
-Executed per SESSION-BRIEF-S199.md's S200 plan (all six batches) on tree c80c184 →
+Executed per docs/SESSION-BRIEF-S199.md's S200 plan (all six batches) on tree c80c184 →
 released as v0.4.1.25 (push 9970919).
 
 **STATUS: RELEASED.** LIVE hibana.ir @ v0.4.1.25, sw v434, schema 63. CI
@@ -2849,7 +2849,7 @@ the skip-link/aria-label HTML probes + health ok/up/63) → tag v0.4.1.25 → zi
 
 Task ID: S201 (single-agent session)
 Agent: Hibana S201 agent (Z.ai Code)
-Task: Execute SESSION-BRIEF-S199.md's S201 plan — present the four rule-4 asks (prepare, never ship unprompted), run + record the restore drills (UX-12), the error_log daily monitor → healthchecks /fail (UX-11), the worklog rotation mode + row caps (HLTH-27), the project-page.js split ride-along (HLTH-24).
+Task: Execute docs/SESSION-BRIEF-S199.md's S201 plan — present the four rule-4 asks (prepare, never ship unprompted), run + record the restore drills (UX-12), the error_log daily monitor → healthchecks /fail (UX-11), the worklog rotation mode + row caps (HLTH-27), the project-page.js split ride-along (HLTH-24).
 
 Work Log:
 - Cloned @ 64864af (S200 release state); read Agents.md → SESSION-BRIEF → §4/§6 → worklog tail. Live-state audit first: hibana.ir health ok/up/63; CI #559 + CD #409 + Uptime #154 all green on 64864af; both healthchecks up; prod error_log EMPTY (7-day retention, 0 rows); planb_backups 27 rows (newest 2026-09-08).
@@ -3089,7 +3089,7 @@ project-page.js extraction (only when next touched for real work).
 
 Task ID: S205 (single-agent session)
 Agent: Hibana S205 agent (Z.ai Code)
-Task: Execute Hibana-Kanban-Polish-and-Go-Desktop-Readiness-Spec.md (repo root) — the dedicated projects.hibana.ir/kanban entry point, the top-level project switcher, measured performance work, and the six desktop-readiness documents. The Go desktop app itself is NOT started (per spec §7).
+Task: Execute docs/Hibana-Kanban-Polish-and-Go-Desktop-Readiness-Spec.md (docs/) — the dedicated projects.hibana.ir/kanban entry point, the top-level project switcher, measured performance work, and the six desktop-readiness documents. The Go desktop app itself is NOT started (per spec §7).
 
 Work Log:
 - Read the full spec (359 lines) + recon: 3 parallel exploration agents (backend API/schema, frontend Kanban, deployment/CI conventions); mapped routing, the two board surfaces, the auth/CSRF/cookie contracts, the deploy pipeline.

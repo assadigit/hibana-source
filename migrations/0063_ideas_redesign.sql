@@ -1,4 +1,4 @@
--- 0063 (S161 rebuild, spec hibana-ideas-section-spec.md): the Ideas section becomes
+-- 0063 (S161 rebuild, spec docs/hibana-ideas-section-spec.md): the Ideas section becomes
 -- its own lean surface. Schema additions:
 --   projects.pinned_at    — spec #5: pinned ideas float to the top of their folder
 --                           (server-stamped toggle; NULL = unpinned).

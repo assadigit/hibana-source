@@ -1,5 +1,5 @@
 // e2e/s161-ideas-redesign.spec.ts — S161 (0063): the Ideas section becomes its own
-// lean surface (the owner's 16-item spec, hibana-ideas-section-spec.md).
+// lean surface (the owner's 16-item spec, docs/hibana-ideas-section-spec.md).
 // Pins (the S167 rebuild round):
 //   (1)  the LEAN page's field-set + a dirty→Save→"✓ Saved" round-trip (reload-durable)
 //   (2)  the pin toggle floats a card to the top + PERSISTS across reload

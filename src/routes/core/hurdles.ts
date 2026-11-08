@@ -11,6 +11,7 @@ import { getOwnedProject, icon } from '../../lib/html'
 import { localeOf, trL, type Locale } from '../../lib/i18n'
 import { uuid } from '../../lib/ids'
 import { createHurdleSchema, hurdleReorderSchema, updateHurdleSchema } from '../../validation/schemas'
+import { touchProject } from '../devboard-helpers' // S257 (BE-16): the one project-stamp helper
 import { errJson, ErrorCode } from '../../lib/errors'
 import { ownedProjectId } from './ownership'
 import type { Config, HurdleRow, UserRow } from '../../types'
@@ -106,7 +107,7 @@ export function registerCoreHurdles(app: import('hono').Hono<{ Variables: { user
       await cfg.db.execute('UPDATE hurdles SET status = ?, solved_at = ? WHERE id = ?', [
         body.status, body.status === 'solved' ? now : null, c.req.param('id'),
       ])
-      await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
+      await touchProject(cfg, projectId, now) // S257 (BE-16): the one project-stamp helper
     }
     if (body.text) await cfg.db.execute('UPDATE hurdles SET text = ? WHERE id = ?', [body.text, c.req.param('id')])
     if (isHtmx(c)) {

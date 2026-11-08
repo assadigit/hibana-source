@@ -10,7 +10,7 @@ import {
 import { trL, type Locale } from '../../lib/i18n'
 import { faDigits, toJalali, J_MONTHS_FA, G_MONTHS_EN_AB } from '../../lib/jalali'
 import { loadBacklog, taskTagsForProject, taskDepsForProject, PRIO_ORDER_SQL, type BacklogEvent, type TaskTagJoin, type TaskDepEdge, effectiveDeadlineOf } from '../devboard-helpers'
-import type { CategoryRow } from '../../lib/categories'
+import { categoriesForProject, type CategoryRow } from '../../lib/categories'
 import { shotsGridHtml } from '../core'
 import { STATUS_ORDER } from '../../types'
 import type {
@@ -79,21 +79,11 @@ export async function loadDetail(cfg: Config, p: ProjectRow) {
     cfg.db.query<DevTaskRow>(`SELECT t.* FROM dev_tasks t WHERE t.project_id = ? ORDER BY ${PRIO_ORDER_SQL}, t.sort_order, t.created_at`, [p.id]),
     // S29 follow-up: per-task labels ({task_id, id, name, color}) — chips on the cards.
     taskTagsForProject(cfg, p.id),
-    // S152: the GLOBAL library's rows this project can see — every ENABLED category
-    // (the picker/toggle set) UNION every category its tasks reference (a category
-    // disabled later keeps rendering its chip — history intact, block 8). `enabled`
-    // lets the client split the picker set from the chip set; archived never returns.
-    cfg.db.query<CategoryRow & { enabled: number }>(
-      `SELECT c.*, CASE WHEN c.is_archived = 1 THEN 0 ELSE COALESCE((SELECT 1 FROM project_categories pc WHERE pc.category_id = c.id AND pc.project_id = ?), 0) END AS enabled
-       FROM categories c
-       -- S152/block 8: archived rows STAY in the payload when a task still references
-       -- them (the chip keeps rendering — history visible); they carry enabled = 0
-       -- so the pickers and toggles exclude them from NEW selections.
-       WHERE c.id IN (SELECT category_id FROM dev_tasks WHERE project_id = ? AND category_id IS NOT NULL)
-          OR (c.is_archived = 0 AND c.id IN (SELECT category_id FROM project_categories WHERE project_id = ?))
-       ORDER BY c.name COLLATE NOCASE, c.created_at`,
-      [p.id, p.id, p.id],
-    ).catch(() => []), // 0062 belt: a D1 pre-migration has no categories table — chip-less, not broken
+    // S257 (BE-11): the categories pool rides the shared categoriesForProject
+    // (lib/categories.ts) — the SQL was byte-identical here and in the board GET;
+    // one home now, both surfaces agree forever. (S152's picker/chip split + the
+    // 0062 lagging-D1 belt live in the helper.)
+    categoriesForProject(cfg.db, p.id),
     cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? ORDER BY started_at', [p.id]),
     // برنامه آتی tab payload (0033): documents + merged history feed.
     loadBacklog(cfg, p.id),

@@ -59,6 +59,34 @@ export interface CategoryRow {
   created_at: string
 }
 
+/** S257 (audit BE-11 — the Phase 6 devboard split): the ONE shared categories
+ *  payload query — every category row a project's surfaces can see: every ENABLED
+ *  category (the picker/toggle set) UNION every category its tasks already reference
+ *  (disabled later → the chip still resolves; history intact). `enabled` lets the
+ *  client split the picker set from the chip set. Was written byte-identically in
+ *  devboard.ts's board GET and projects/detail-helpers.ts's loadDetail; one home now.
+ *
+ *  Belt (the 0062 lagging-D1 doctrine): a D1 pre-migration has no categories table —
+ *  the read degrades to [] (chip-less, not broken). */
+export async function categoriesForProject(
+  db: { query: <T>(sql: string, params?: unknown[]) => Promise<T[]> },
+  projectId: string,
+): Promise<(CategoryRow & { enabled: number })[]> {
+  return db
+    .query<CategoryRow & { enabled: number }>(
+      `SELECT c.*, CASE WHEN c.is_archived = 1 THEN 0 ELSE COALESCE((SELECT 1 FROM project_categories pc WHERE pc.category_id = c.id AND pc.project_id = ?), 0) END AS enabled
+       FROM categories c
+       -- S152/block 8: archived rows STAY in the payload when a task still references
+       -- them (the chip keeps rendering — history visible); they carry enabled = 0
+       -- so the pickers and toggles exclude them from NEW selections.
+       WHERE c.id IN (SELECT category_id FROM dev_tasks WHERE project_id = ? AND category_id IS NOT NULL)
+          OR (c.is_archived = 0 AND c.id IN (SELECT category_id FROM project_categories WHERE project_id = ?))
+       ORDER BY c.name COLLATE NOCASE, c.created_at`,
+      [projectId, projectId, projectId],
+    )
+    .catch(() => []) // 0062 belt: a D1 pre-migration has no categories table — chip-less, not broken
+}
+
 // S181 (0064): does THIS database's categories table carry user_id yet? The Node
 // runner migrates on boot, but a deployed Worker can land minutes before the
 // owner's d1-migrate step (the S126 pre-push ritual orders it the safe way —

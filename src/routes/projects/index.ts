@@ -13,7 +13,7 @@ import { queryIn } from '../../lib/inchunk'
 import { isValidCatPair } from '../../lib/categories'
 import type { Config, ProjectRow, UserRow } from '../../types'
 import { toastHtml, getOwnedProject, STATUS_LABEL } from '../../lib/html'
-import { noteSchema, reorderSchema, sparkFolderSchema, updateProjectSchema, createProjectSchema, listProjectsSchema } from '../../validation/schemas'
+import { noteSchema, projectReorderSchema, sparkFolderSchema, updateProjectSchema, createProjectSchema, listProjectsSchema } from '../../validation/schemas'
 import type { SparkFolderRow } from '../../types'
 import { loadProjectProgress, STALE_IN_MOTION_STATUSES, staleCutoffIso } from './helpers'
 import type { SparkHit } from './helpers'
@@ -28,6 +28,21 @@ import {
 } from './helpers'
 import { loadDetail, detailHtml } from './detail-helpers'
 import { errJson, ErrorCode } from '../../lib/errors'
+import type { Context } from 'hono'
+
+// S257 (audit BE-16 — the Phase 6 devboard split's same-change dedups): the two
+// byte-identical upload-rate-limit bodies (folder banner + project logo) and the two
+// byte-identical glance status-count queries (grid view + filtered fragment) fold
+// into these module-level helpers — same statements, same responses, one home each.
+const uploadRateLimited = async (c: Context, db: Config['db']) =>
+  (await hitRateLimit(db, RATE_RULES.upload, clientIp(c)))
+    ? c.json({ error: ErrorCode.rate_limited, message: 'Too many uploads — wait a minute and try again.' }, 429)
+    : null
+const glanceCountRows = (db: Config['db'], userId: string) =>
+  db.query<{ status: string; n: number }>(
+    "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark' AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
+    [userId],
+  )
 /** S161 folder header for a specific folder view (Phase 3 M3: extracted from the
  *  GET / handler — was the 5-deep branch). spec #3: "last updated" = the newest
  *  updated_at among the FOLDER's ideas (any field edit bumps it — links/tags/
@@ -192,10 +207,8 @@ export function projectsRoutes(cfg: Config) {
         return overallTasksHtml(ov.counts, ov.recent, lang)
       }
       if (view === 'grid') {
-        const countRows = await cfg.db.query<{ status: string; n: number }>(
-          "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark' AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
-          [user.id],
-        )
+        // S257 (BE-16): the shared glance count query (was the first of two identical copies)
+        const countRows = await glanceCountRows(cfg.db, user.id)
         const counts = new Map<string, number>(countRows.map((r) => [r.status, r.n]))
         // S45 (owner directive: the projects home finally shows WORK, not just counts).
         // - The pure home (no status/q/tag): the compact glance rail + «Recently active»
@@ -322,10 +335,8 @@ export function projectsRoutes(cfg: Config) {
       // columns already encode the same status+count information one screen-inch below
       // it, so the strip read as redundancy (owner report). Cards/list/sticky keep it.
       if (c.req.query('view') !== undefined && view !== 'kanban' && activeStatus !== 'spark') {
-        const countRows = await cfg.db.query<{ status: string; n: number }>(
-          "SELECT status, COUNT(*) AS n FROM projects WHERE user_id = ? AND deleted_at IS NULL AND status != 'spark' AND (archived_state IS NULL OR archived_state != 'offline') GROUP BY status",
-          [user.id],
-        )
+        // S257 (BE-16): the shared glance count query (was the second of two identical copies)
+        const countRows = await glanceCountRows(cfg.db, user.id)
         const counts = new Map<string, number>(countRows.map((r) => [r.status, r.n]))
         if (countRows.some((r) => r.n > 0)) fragment = glanceStrip(counts, activeStatus, lang) + fragment
       }
@@ -465,7 +476,7 @@ export function projectsRoutes(cfg: Config) {
   })
 
   app.post('/reorder', async (c) => {
-    const body = await jsonBody<z.infer<typeof reorderSchema>>(c, reorderSchema)
+    const body = await jsonBody<z.infer<typeof projectReorderSchema>>(c, projectReorderSchema)
     if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
     // Reorder is always within a single status group (rule 1 + status coherence): an id of
@@ -578,9 +589,9 @@ export function projectsRoutes(cfg: Config) {
     mimeType: z.string().regex(/^image\/(png|jpeg|webp)$/),
   })
   app.put('/sparks/folders/:id/banner', async (c) => {
-    if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
-      return c.json({ error: ErrorCode.rate_limited, message: 'Too many uploads — wait a minute and try again.' }, 429)
-    }
+    // S257 (BE-16): the shared rate-limit body (was the first of two identical copies)
+    const limited = await uploadRateLimited(c, cfg.db)
+    if (limited) return limited
     const body = await jsonBody<z.infer<typeof bannerUploadSchema>>(c, bannerUploadSchema)
     if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')
@@ -885,9 +896,9 @@ export function projectsRoutes(cfg: Config) {
   app.put('/:id/logo', async (c) => {
     // T2 (SWOT Session 26): wire the upload rate limiter — logo uploads push bytes
     // into the GitHub assets repo, same as avatar uploads. 30 req/60s per IP.
-    if (await hitRateLimit(cfg.db, RATE_RULES.upload, clientIp(c))) {
-      return c.json({ error: ErrorCode.rate_limited, message: 'Too many uploads — wait a minute and try again.' }, 429)
-    }
+    // S257 (BE-16): the shared rate-limit body (was the second of two identical copies)
+    const limited = await uploadRateLimited(c, cfg.db)
+    if (limited) return limited
     const body = await jsonBody<z.infer<typeof logoUploadSchema>>(c, logoUploadSchema)
     if (!body) return errJson(c, ErrorCode.invalid_input)
     const user = c.get('user')

@@ -19,6 +19,8 @@
 
 import { uuid } from '../lib/ids'
 import { executeIn, queryIn } from '../lib/inchunk' // queryIn: S253 (BE-1) — setTaskTags' batched finds
+import { errJson, ErrorCode } from '../lib/errors'
+import type { Context } from 'hono'
 import type { Config, DevTaskRow, SprintRow, SprintStatus, BacklogDocRow, StrategyRow, StrategyStatus } from '../types'
 
 export async function logHistory(cfg: Config, projectId: string, note: string) {
@@ -26,6 +28,73 @@ export async function logHistory(cfg: Config, projectId: string, note: string) {
     uuid(), projectId, note, new Date().toISOString(),
   ])
 }
+
+/** S257 (audit BE-16 — the Phase 6 devboard split): the ONE "the project changed"
+ *  stamp — `UPDATE projects SET updated_at` was written ×18 across the route tree
+ *  (devboard ×9, core/media ×3, core/hurdles, core/links, module). Sites inside a
+ *  cfg.db.transaction (hurdles' queued tx.sql) and the two user-scoped module.ts
+ *  variants keep their own statement — only the byte-identical cfg.db.execute shape
+ *  rides here. `ts` lets a caller reuse a handler-scoped `now` so multi-statement
+ *  flows keep stamping ONE instant (omit it for a fresh stamp). */
+export async function touchProject(cfg: Config, projectId: string, ts?: string): Promise<void> {
+  await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [ts ?? new Date().toISOString(), projectId])
+}
+
+/** S257 (audit BE-14): the ONE SET-builder — the `push` closure + entries loop was
+ *  written ×4 (devtasks PATCH's column loop, sprints PATCH's two branch arms,
+ *  projects PATCH's body loop). Returns the mutable {sets, params, push} so callers
+ *  keep stamping special-case columns (done_at / due_origin_at / updated_at) after
+ *  the generic entries. Entries semantics: `undefined` values are SKIPPED (the
+ *  devboard grammar); projects PATCH's undefined→null belt keeps its own loop shape.
+ */
+export function buildUpdate(entries: [string, unknown][] = []): {
+  sets: string[]
+  params: unknown[]
+  push: (col: string, val: unknown) => void
+} {
+  const sets: string[] = []
+  const params: unknown[] = []
+  for (const [k, v] of entries) {
+    if (v === undefined) continue
+    sets.push(`${k} = ?`)
+    params.push(v)
+  }
+  const push = (col: string, val: unknown) => { sets.push(`${col} = ?`); params.push(val) }
+  return { sets, params, push }
+}
+
+/** S257 (audit BE-15): the ONE one-active 409 guard — the verbatim 2-liner lived ×4
+ *  (start, resume, PATCH's reopen branch, POST /reopen). Returns the 409 Response
+ *  when ANOTHER sprint is active on the project, else null (the caller returns it
+ *  as-is: the body + status are byte-identical to the inlined form). */
+export async function assertNoActiveSibling(c: Context, cfg: Config, projectId: string, selfId: string): Promise<Response | null> {
+  const active = await findActiveSprint(cfg, projectId)
+  if (active && active.id !== selfId) return c.json({ error: ErrorCode.sprint_active_exists, active_id: active.id }, 409)
+  return null
+}
+
+/** S257 (audit BE-15): the ONE latest-sprint reopen guard — the verbatim fold lived
+ *  ×2 (PATCH's null-end branch + POST /reopen): only the LATEST sprint by started_at
+ *  may reopen (the timeline's trailing-open-band ordering, S235's contract). Returns
+ *  the 400 Response when any non-draft sibling starts after `selfStart`, else null.
+ *  `others` — optional pre-fetched sibling rows (PATCH already holds the sibling
+ *  set); omitted → the canonical started_at query. */
+export async function assertLatestSprint(
+  c: Context,
+  cfg: Config,
+  projectId: string,
+  selfId: string,
+  selfStart: string,
+  others?: { started_at: string }[],
+): Promise<Response | null> {
+  const rows = others ?? (await cfg.db.query<{ started_at: string }>(
+    'SELECT started_at FROM sprints WHERE project_id = ? AND id != ? AND is_draft = 0',
+    [projectId, selfId],
+  ))
+  const isLatest = rows.every((x) => Date.parse(x.started_at) <= Date.parse(selfStart))
+  return isLatest ? null : errJson(c, ErrorCode.invalid_input)
+}
+
 
 export async function ownedTask(cfg: Config, userId: string, id: string): Promise<DevTaskRow | null> {
   const rows = await cfg.db.query<DevTaskRow>(

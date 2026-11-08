@@ -10,6 +10,7 @@ import { getOwnedProject, icon, toastHtml } from '../../lib/html'
 import { localeOf, trFor, trL, type Locale } from '../../lib/i18n'
 import { uuid } from '../../lib/ids'
 import { createLinkSchema, updateLinkSchema } from '../../validation/schemas'
+import { touchProject } from '../devboard-helpers' // S257 (BE-16): the one project-stamp helper
 import { errJson, ErrorCode } from '../../lib/errors'
 import { ownedProjectId } from './ownership'
 import type { Config, LinkRow, UserRow } from '../../types'
@@ -47,7 +48,7 @@ export function registerCoreLinks(app: import('hono').Hono<{ Variables: { user: 
     ])
     // S161 (spec #3): every field edit bumps the idea's updated_at — a link add is a
     // field edit; the folder's "Updated" metric + the shelf's recency order ride it.
-    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), p.id])
+    await touchProject(cfg, p.id) // S257 (BE-16): fresh stamp, exactly as before
     if (isHtmx(c)) {
       const links = await cfg.db.query<LinkRow>('SELECT * FROM links WHERE project_id = ? ORDER BY created_at', [p.id])
       return c.html(linksHtml(links, localeOf(c)), 201)
@@ -91,7 +92,7 @@ export function registerCoreLinks(app: import('hono').Hono<{ Variables: { user: 
     ])
     // S161 (spec #3): a link remove bumps the owning idea/project's updated_at too.
     if (owned.length) {
-      await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), owned[0].project_id])
+      await touchProject(cfg, owned[0].project_id) // S257 (BE-16): fresh stamp, exactly as before
     }
     if (isHtmx(c)) {
       const links = owned.length

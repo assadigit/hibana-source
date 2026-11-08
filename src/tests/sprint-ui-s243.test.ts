@@ -339,7 +339,11 @@ describe('S243 — the compact Kanban overview (Screen G) on BOTH board surfaces
 
 describe('S243 — the archives list server twin (the delete preview\u2019s data source)', () => {
   it('GET /api/projects/:id/archives carries sprint_id + sprint_name_snapshot (additive) with a lagging-D1 belt', () => {
-    const ts = readPublic('../src/routes/devboard.ts')
+    // S257 (the Phase 6 devboard split): the archives route moved verbatim from
+    // src/routes/devboard.ts to src/routes/devboard/archives.ts — the read target
+    // moves with it (one of the two documented read-target updates; the assertions
+    // are the S243 pins, unchanged).
+    const ts = readPublic('../src/routes/devboard/archives.ts')
     expect(ts).toContain('SELECT id, title, priority, done_at, original_created_at, archived_at, tags, sprint_id, sprint_name_snapshot FROM project_archives')
     expect(ts).toContain('sprint_id: r.sprint_id, sprint_name_snapshot: r.sprint_name_snapshot')
     // the lagging-D1 belt (the taskDepsForProject precedent): a pre-0065 DB degrades, never 500s

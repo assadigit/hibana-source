@@ -554,7 +554,13 @@ describe('S247 — §24-7 the server twin at the exact boundaries', () => {
 describe('S247 — §24-4 the contract doc mirrors the code', () => {
   it('the CONTRACT DOC mirrors the code (§24-4 — the desktop consumes §12 in Phase 9): every §12 endpoint/body/error is the real route', () => {
     const doc = readRepo('docs/project-kanban/API-AND-SYNC-CONTRACT.md')
-    const devboard = readRepo('src/routes/devboard.ts')
+    // S257 (the Phase 6 devboard split): devboard.ts is now src/routes/devboard/
+    // {index,board,tasks,sprints,strategies,archives,misc}.ts — the read targets move
+    // to the modules that carry the routes today (the assertions themselves are the
+    // S247 pins, unchanged; this is one of the two documented read-target updates).
+    const board = readRepo('src/routes/devboard/board.ts')
+    const tasks = readRepo('src/routes/devboard/tasks.ts')
+    const sprints = readRepo('src/routes/devboard/sprints.ts')
     const helpers = readRepo('src/routes/devboard-helpers.ts')
     const detail = readRepo('src/routes/projects/detail-helpers.ts')
 
@@ -569,38 +575,44 @@ describe('S247 — §24-4 the contract doc mirrors the code', () => {
       "app.patch('/api/sprints/:id'",
       "app.delete('/api/sprints/:id'",
     ]) {
-      expect(devboard, `the doc's §12.1 route ${route} must exist in devboard.ts`).toContain(route)
+      expect(sprints, `the doc's §12.1 route ${route} must exist in src/routes/devboard/sprints.ts`).toContain(route)
     }
     // §12.2 the effective triple is ONE shared helper consumed by both pools
-    // (devboard.ts renders through boardTaskRows — the helper's own export site)
+    // (the board GET renders through boardTaskRows — the helper's own export site)
     expect(helpers).toContain('export function effectiveDeadlineOf')
-    expect(devboard).toContain('boardTaskRows, // S241: task rows + the server-computed effective deadline')
+    expect(board).toContain('boardTaskRows, // S241: task rows + the server-computed effective deadline')
     expect(helpers).toContain('export function boardTaskRows')
     expect(detail).toContain('effectiveDeadlineOf')
-    // the S245 ride-along body key the doc documents
-    expect(devboard).toContain('due_origin_at')
+    // the S245 ride-along body key the doc documents (the task PATCH grammar lives
+    // in tasks.ts's import of updateDevTaskSchema + the schema itself)
+    expect(readRepo('src/routes/devboard/schemas.ts')).toContain('due_origin_at')
+    expect(tasks).toContain('dueOriginAt')
     // §12.3 the deps endpoints + the 409 cycle / 400 invalid_input family (the
     // cycle code lives in the shared error registry; the deps route answers 409)
-    expect(devboard).toContain("app.post('/api/devtasks/:id/deps'")
-    expect(devboard).toContain("app.delete('/api/devtasks/:id/deps/:blockerId'")
-    expect(devboard).toContain('ErrorCode.cycle, 409')
+    expect(tasks).toContain("app.post('/api/devtasks/:id/deps'")
+    expect(tasks).toContain("app.delete('/api/devtasks/:id/deps/:blockerId'")
+    expect(tasks).toContain('ErrorCode.cycle, 409')
     expect(readRepo('src/lib/errors.ts')).toContain('cycle:')
     // the payload's 7th key + the detail pool's twin (§12.3's embedded-fold decision)
     expect(helpers).toContain('taskDepsForProject')
-    expect(devboard).toContain('task_deps')
+    expect(board).toContain('task_deps')
     expect(detail).toContain('taskDeps')
-    // §12.4 the completed-sprint assignment guards + the one-active family
-    expect(devboard).toContain('ErrorCode.sprint_completed, 400')
-    expect(devboard).toContain('ErrorCode.sprint_active_exists')
+    // §12.4 the completed-sprint assignment guards + the one-active family (the
+    // task-assignment guards live in tasks.ts; the one-active 409s live in sprints.ts
+    // + the S257 assertNoActiveSibling helper in devboard-helpers.ts)
+    expect(tasks).toContain('ErrorCode.sprint_completed, 400')
+    expect(sprints).toContain('ErrorCode.sprint_active_exists')
+    expect(helpers).toContain('ErrorCode.sprint_active_exists')
     expect(readRepo('src/lib/errors.ts')).toContain('sprint_completed:')
     // the doc itself carries the sections the desktop will read
     for (const section of ['### 12.1 Sprint model + endpoints', '### 12.2 Task deadlines', '### 12.3 Task dependencies', '### 12.4 Task endpoints', '### 12.5 Sprint overview counts', '### 12.6 Sync implications']) {
       expect(doc, `the contract doc must carry ${section}`).toContain(section)
     }
-    // the doc's §12 error codes are the codes the code throws
+    // the doc's §12 error codes are the codes the code throws (the codes live across
+    // the devboard modules + helpers after the S257 split)
     for (const code of ['sprint_active_exists', 'sprint_active', 'sprint_completed', 'duplicate', 'draft_exists', 'invalid_input', 'cycle']) {
       expect(doc).toContain(code)
-      expect(devboard).toContain(code)
+      expect(`${sprints}\n${tasks}\n${helpers}`).toContain(code)
     }
   })
 })

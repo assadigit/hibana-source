@@ -15,6 +15,7 @@ import { uuid } from '../../lib/ids'
 import { shotStoreFor } from '../../services/shotstore'
 import { clientIp, hitRateLimit, RATE_RULES } from '../../services/ratelimit'
 import { uploadScreenshotSchema, uuidSchema } from '../../validation/schemas'
+import { touchProject } from '../devboard-helpers' // S257 (BE-16): the one project-stamp helper
 import { errJson, ErrorCode } from '../../lib/errors'
 import { shotsGridHtml, shotTaskMap } from './shots-html'
 import { ownedProjectId } from './ownership'
@@ -202,7 +203,7 @@ export function registerCoreMedia(app: import('hono').Hono<{ Variables: { user: 
     // S161 (spec #3): an image add is a field edit — the idea's updated_at bumps (the
     // newest-upload-is-the-thumb default follows created_at, but the folder's Updated
     // metric + shelf recency ride updated_at).
-    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [new Date().toISOString(), p.id])
+    await touchProject(cfg, p.id) // S257 (BE-16): fresh stamp, exactly as before
     if (isHtmx(c)) return c.html(toastHtml(body.mimeType.startsWith('image/') ? t('Screenshot uploaded', 'اسکرین‌شات آپلود شد') : t('File uploaded', 'فایل آپلود شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true, id, mimeType: body.mimeType }, 201)
   })
@@ -254,7 +255,7 @@ export function registerCoreMedia(app: import('hono').Hono<{ Variables: { user: 
         try { await shotStore.putObject(`${row[0].github_path}.thumb`, body.thumbBase64, 'image/webp') } catch { /* best-effort */ }
       }
     }
-    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
+    await touchProject(cfg, projectId, now) // S257 (BE-16): the one project-stamp helper
     if (isHtmx(c)) return c.html(toastHtml(t('Saved', 'ذخیره شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })
@@ -346,7 +347,7 @@ export function registerCoreMedia(app: import('hono').Hono<{ Variables: { user: 
     // path already degrades a missing shot to the fallback thumb.
     const now = new Date().toISOString()
     await cfg.db.execute('UPDATE projects SET cover_shot_id = NULL WHERE cover_shot_id = ? AND user_id = ?', [c.req.param('id'), user.id])
-    await cfg.db.execute('UPDATE projects SET updated_at = ? WHERE id = ?', [now, projectId])
+    await touchProject(cfg, projectId, now) // S257 (BE-16): the one project-stamp helper
     if (isHtmx(c)) return c.html(toastHtml(t('Screenshot deleted', 'اسکرین‌شات حذف شد'), localeOf(c), undefined, 'ok'))
     return c.json({ ok: true })
   })

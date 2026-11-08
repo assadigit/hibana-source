@@ -80,7 +80,11 @@ export const updateProjectSchema = z
   })
   .refine((o) => Object.keys(o).length > 0, { message: 'empty update' })
 
-export const reorderSchema = z.object({
+// S257 (audit BE-13): renamed from `reorderSchema` — the devboard's module-local
+// reorder schema (different grammar: ids-only, max 500) carried the SAME name in a
+// second home; it is now `devtaskReorderSchema` in src/routes/devboard/schemas.ts
+// and this one is the projects-domain grammar it always served.
+export const projectReorderSchema = z.object({
   status: statusInput,
   ids: z.array(uuidSchema).min(1),
 })

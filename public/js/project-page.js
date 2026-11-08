@@ -1549,9 +1549,17 @@
         // the wiring below — wide textarea, long sentences fully visible); Enter creates
         // the task in that status and the chip/count/progress update in place. All
         // delegated so htmx re-renders of #project-body (status select etc.) keep working.
-        const pdEsc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+        // S256 (FE-13, audit remediation Phase 5): the byte-equal esc twin retires into
+        // chip-render.js through the existing window.HibanaChips gating. project.html loads
+        // chip-render.js?v=14 BEFORE this file, so the chip branch always resolves on the
+        // real page; HibanaBoard (devboard.js, also loaded first) is the fallback root.
+        // Output identical; one definition serves the whole island.
+        const pdEsc = (s) => (window.HibanaChips ? window.HibanaChips.esc(s) : window.HibanaBoard.esc(s))
         const pdLang = () => (window.hibanaI18n && window.hibanaI18n.lang ? window.hibanaI18n.lang() : 'en')
-        const pdDig = (s) => (pdLang() === 'fa' ? String(s).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[+d]) : String(s))
+        // S256 (FE-13): pdDig's byte-equal twin is devboard.js's faDig (the lang-gated
+        // root — chip-render's internal faDig is unconditional, a different contract);
+        // delegate to it. Output identical (both gate on hibanaI18n.lang() === 'fa').
+        const pdDig = (s) => (window.HibanaBoard ? window.HibanaBoard.faDig(s) : String(s))
         const pdTasksLine = (done, total) => {
           let s = window.hibanaI18n?.t('pd.tasksDone')
           if (!s || s === 'pd.tasksDone') s = '{n} of {m} tasks done'
@@ -1561,47 +1569,29 @@
         // FA digits when fa (Intl persian calendar; project.html never loads the jalaali
         // vendor), Gregorian + 12h clock when en. UTC edge — twin of the server-side
         // taskMetaLabel() in routes/projects.ts.
-        const PD_G_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        const pdMetaLine = (iso, done) => {
-          const d = new Date(iso)
-          const hh = d.getUTCHours()
-          const mm = String(d.getUTCMinutes()).padStart(2, '0')
-          const clock = pdLang() === 'fa'
-            ? pdDig(String(hh).padStart(2, '0')) + ':' + pdDig(mm)
-            : ((hh % 12) || 12) + ':' + mm + ' ' + (hh < 12 ? 'AM' : 'PM')
-          let date
-          if (pdLang() === 'fa') {
-            try {
-              date = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(d)
-            } catch {
-              date = d.toISOString().slice(0, 10)
-            }
-          } else {
-            date = d.getUTCDate() + ' ' + PD_G_MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear()
-          }
-          return (done ? '✓ ' : '') + date + ' · ' + clock
-        }
+        // S256 (FE-13): the client meta-line twin (PD_G_MONTHS + pdMetaLine) retired
+        // into chip-render.js's metaLine/metaDateHtml — the SHARED home, pinned
+        // byte-equal by e2e/s110-meta-parity.spec.ts. This is now the same gated
+        // delegate board-page.js's metaDate has always used, so the two surfaces
+        // share ONE implementation by construction. The fallback mirrors board-page's
+        // (B().esc of the raw value — never fires on the real page; chip-render.js is
+        // a static tag ahead of this file).
+        const pdMetaDateHtml = (iso, done) => (window.HibanaChips
+          ? window.HibanaChips.metaDateHtml(iso, done, pdLang())
+          : (window.HibanaBoard ? window.HibanaBoard.esc(String(iso || '')) : String(iso || '')))
 
         // --- S29 follow-up (user request 2026-09-12): priorities + labels on tasks ----
         // The four priorities as the owner worded them (Urgent / High Priority /
         // Medium Priority / Low Priority), color-coded. The RANK drives the boxes'
         // AUTO-SORT (urgent first); the label rides the card meta + both modals' chips.
-        const PD_PRIO_LABEL = {
-          urgent: { en: 'Urgent', fa: 'فوری' },
-          high: { en: 'High Priority', fa: 'اولویت بالا' },
-          medium: { en: 'Medium Priority', fa: 'اولویت متوسط' },
-          low: { en: 'Low Priority', fa: 'اولویت کم' },
-        }
-        const pdPrioLabel = (p) => {
-          const e = PD_PRIO_LABEL[p] || PD_PRIO_LABEL.medium
-          return pdLang() === 'fa' ? e.fa : e.en
-        }
+        // S256 (FE-13): the byte-equal long-label twin (PD_PRIO_LABEL + pdPrioLabel)
+        // retired into chip-render.js's PRIO_LABEL/prioLabel (the shared home, already
+        // exported). The fallback mirrors board-page.js's exact gate (B().prioLabel —
+        // the SHORT names — never fires on the real page; chip-render.js is a static
+        // tag ahead of this file).
+        const pdPrioLabel = (p) => (window.HibanaChips ? window.HibanaChips.prioLabel(p, pdLang()) : window.HibanaBoard.prioLabel(p))
         const PD_PRIO_RANK = { urgent: 0, high: 1, medium: 2, low: 3 }
         const pdPrioRank = (p) => PD_PRIO_RANK[p] ?? 2
-        // S144 (the priority banner): the meta line WITHOUT the leading priority label —
-        // the PRIORITY BANNER fused across the card's top carries the label now; the
-        // footer keeps the date + clock (twin of the server's date-only meta).
-        const pdMetaDateHtml = (iso, done) => pdEsc(pdMetaLine(iso, done))
         // S144: keep the PRIORITY BANNER honest after any in-place priority change
         // (cycle, editor save, drop-adoption) — class swap + label + hint. Twin of the
         // banner markup in the card re-renderers.
@@ -2902,7 +2892,9 @@
           if (cnt) cnt.textContent = stagedShots.length ? _t('project.shotsAttached', '{n} attached').replace('{n}', String(stagedShots.length)) : ''
           if (!grid) return
           if (!stagedShots.length) { grid.innerHTML = ''; return }
-          const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') // Phase 1 (AP-14): single-quote joins the set — the canonical 5-char escaper
+          // S256 (FE-13): the third esc copy retires — the gated pdEsc delegate above
+          // (byte-equal output; chip-render.js owns it on the real page).
+          const esc = (s) => (window.HibanaChips ? window.HibanaChips.esc(s) : window.HibanaBoard.esc(s))
           // S46.6: IMG onerror retries up to 4× (KV read-after-write propagation delay)
           const retryAttr = ' onerror="(function(i){var n=+(i.dataset.r||0)+1;if(n<4){i.dataset.r=n;var s=i.src;i.onerror=null;setTimeout(function(){i.src=s},800*n)}})(this)"'
           grid.innerHTML = stagedShots.map((s) => {
@@ -5070,7 +5062,9 @@
             if (!res.ok) return
             const shots = ((await res.json()).screenshots) || []
             const pinned = shots.filter((s) => s.task_id === tid)
-            const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') // Phase 1 (AP-14): single-quote joins the set — the canonical 5-char escaper
+            // S256 (FE-13): the third esc copy retires — the gated delegate (byte-equal
+            // output; chip-render.js owns it on the real page).
+            const esc = (s) => (window.HibanaChips ? window.HibanaChips.esc(s) : window.HibanaBoard.esc(s))
             // S46.6: the IMG onerror retries up to 4× with backoff (800ms, 1.6s, 2.4s, 3.2s)
             // — handles the KV read-after-write propagation delay (a freshly-uploaded
             // screenshot's file might 404/500 on a KV edge that hasn't seen the write yet;

@@ -14,13 +14,16 @@
 //   (c) BE-10 — archive-done moves exactly the done tasks, atomically, and the
 //       board + archives reflect it.
 //
-// Usage: node scripts/live-s252-probe.mjs [dev|prod]   (default: dev)
+// Usage: node scripts/live-s252-probe.mjs [dev|prod|local]   (default: dev; local =
+//        http://localhost:3017 against `npm run start:node` with a scratch DB)
 // Env:   S252_LOGIN + S252_PASS (the test account) — never hardcoded.
 
 import { randomUUID } from 'node:crypto'
 
 const target = process.argv[2] || 'dev'
-const URL_BASE = target === 'prod' ? 'https://hibana.ir' : 'https://hibana.aliassadi.workers.dev'
+// local: 127.0.0.1, never `localhost` — some sandboxes resolve it to ::1 while the
+// node server binds IPv4 only, and the probe dies with a spurious ECONNREFUSED.
+const URL_BASE = target === 'prod' ? 'https://hibana.ir' : target === 'local' ? 'http://127.0.0.1:3017' : 'https://hibana.aliassadi.workers.dev'
 const LOGIN = process.env.S252_LOGIN
 const PASS = process.env.S252_PASS
 if (!LOGIN || !PASS) {
@@ -39,7 +42,10 @@ const api = async (path, method = 'GET', body, cookie) => {
     method,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
-      ...(cookie ? { Cookie: cookie, Origin: URL_BASE } : {}),
+      // The T6 CSRF rule: every state-changing request carries a TRUSTED Origin
+      // (the app's own) — server-side callers send it explicitly.
+      Origin: URL_BASE,
+      ...(cookie ? { Cookie: cookie } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   })

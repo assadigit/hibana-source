@@ -5593,6 +5593,8 @@
           // the <a>), so the drag carries the wrapper — not just the <a>.
           const wrap = task.closest('.pd-task-wrap') || task
           pdDrag = wrap
+          pdDndRects = null // a fresh drag invalidates any prior cache
+          window.addEventListener('scroll', pdDndOnScroll, true)
           e.dataTransfer.effectAllowed = 'move'
           try { e.dataTransfer.setData('text/plain', wrap.dataset.pdTask || '') } catch {}
           wrap.classList.add('dragging')
@@ -5600,33 +5602,99 @@
         // S151: the live column-placement shared by the mouse dragover and the touch
         // drag — the wrap physically repositions (the pointer never loses the card),
         // landing before the +N more link like the server render would.
-        const pdPlaceInList = (col, wrap, x, y) => {
+        // S254 (FE-2, the board's twin): the placement work is rAF-BATCHED with a
+        // cached target-rect lookup — dragover/touchmove fire at pointer frequency
+        // and the old unbatched handler ran elementFromPoint + getBoundingClientRect
+        // + insertBefore per event (layout thrash). One frame does the work with the
+        // LATEST sample; hover-in-place costs zero layout reads. The cache rebuilds
+        // when the column changes, an insert shifts siblings, or the viewport scrolls
+        // (capture listener — scroll doesn't bubble).
+        let pdDndFrame = 0
+        let pdDndPending = null // { col?, x, y } — col pre-resolved on the mouse path
+        let pdDndRects = null // { col, list, wraps: [{el, top, mid, bottom}], stale }
+        const pdDndOnScroll = () => { if (pdDndRects) pdDndRects.stale = true }
+        const pdDndBuildRects = (col, list) => {
+          const wraps = []
+          for (const el of list.querySelectorAll('.pd-task-wrap')) {
+            if (el === pdDrag) continue
+            const r = el.getBoundingClientRect()
+            wraps.push({ el, top: r.top, mid: r.top + r.height / 2, bottom: r.bottom })
+          }
+          return { col, list, wraps, stale: false }
+        }
+        const pdPlaceInList = (col, p) => {
           const list = col.querySelector('.pd-tasks')
           if (!list) return
-          // targets are .pd-task-wrap elements (the wrapper, not the <a> inside)
-          const under = document.elementFromPoint(x, y)
-          const target = under && under.closest ? under.closest('.pd-task-wrap') : null
-          const more = list.querySelector('[data-pd-more]')
-          if (target && target !== wrap) {
-            const r = target.getBoundingClientRect()
-            list.insertBefore(wrap, y > r.top + r.height / 2 ? target.nextSibling : target)
-          } else if (!target && more && more !== wrap) {
-            list.insertBefore(wrap, more)
-          } else if (!target && !more) {
-            list.appendChild(wrap)
+          if (pdOver !== col) { pdClearOver(); pdOver = col; col.classList.add('drag-over') }
+          // S175: a FOLDED box is a drop TARGET but not a placement preview — the card
+          // stays visible in its source list while the narrow chip highlights; the DROP
+          // itself unfolds the box and lands the card (pdCompleteDrop's hint).
+          if (col.hasAttribute('data-collapsed')) return
+          if (!pdDndRects || pdDndRects.col !== col || pdDndRects.stale) pdDndRects = pdDndBuildRects(col, list)
+          const y = p.y
+          const wraps = pdDndRects.wraps
+          // targets are .pd-task-wrap elements (the wrapper, not the <a> inside) —
+          // the cache's pure-math twin of the old elementFromPoint + closest chain
+          let desired = null
+          for (let i = 0; i < wraps.length; i++) {
+            const w = wraps[i]
+            if (y < w.top) { desired = w.el; break }
+            if (y <= w.bottom) { desired = y > w.mid ? w.el.nextSibling : w.el; break }
           }
+          if (!desired && wraps.length) {
+            const more = list.querySelector('[data-pd-more]')
+            desired = more && more !== pdDrag ? more : null // below the last wrap → before +N more
+          }
+          const anchorEl = desired === pdDrag ? null : desired
+          if (anchorEl === null) {
+            if (pdDrag !== list.lastElementChild) { list.appendChild(pdDrag); pdDndRects.stale = true }
+          } else if (pdDrag.nextSibling !== anchorEl) {
+            list.insertBefore(pdDrag, anchorEl)
+            pdDndRects.stale = true
+          }
+        }
+        const pdDndSchedule = (p) => {
+          pdDndPending = p
+          if (pdDndFrame) return
+          pdDndFrame = requestAnimationFrame(() => {
+            pdDndFrame = 0
+            if (!pdDrag || !pdDndPending) return
+            let p2 = pdDndPending
+            if (!p2.col) {
+              // the touch path carries raw coordinates — resolve the column here
+              // (in the frame, not per move)
+              const under = (Number.isFinite(p2.x) && Number.isFinite(p2.y)) ? document.elementFromPoint(p2.x, p2.y) : null
+              const colEl = under && under.closest ? under.closest('#pd-board .pd-col') : null
+              if (!colEl) return
+              p2 = { col: colEl, x: p2.x, y: p2.y }
+            }
+            pdPlaceInList(p2.col, p2)
+          })
+        }
+        // the drop/touchend contract: the LAST sample's placement must land BEFORE
+        // pdCompleteDrop reads the live DOM for the reorder ids (the e2e suite fires
+        // dragover→drop synchronously — the pending frame would still be queued)
+        const pdDndFlush = () => {
+          if (pdDndFrame) { cancelAnimationFrame(pdDndFrame); pdDndFrame = 0 }
+          if (pdDrag && pdDndPending) {
+            let p2 = pdDndPending
+            if (!p2.col) {
+              const under = (Number.isFinite(p2.x) && Number.isFinite(p2.y)) ? document.elementFromPoint(p2.x, p2.y) : null
+              const colEl = under && under.closest ? under.closest('#pd-board .pd-col') : null
+              if (colEl) p2 = { col: colEl, x: p2.x, y: p2.y }
+            }
+            if (p2.col) pdPlaceInList(p2.col, p2)
+          }
+          pdDndPending = null
         }
         ctx.on('dragover', (e) => {
           if (!pdDrag) return
           const col = e.target.closest ? e.target.closest('#pd-board .pd-col') : null
           if (!col) return
           e.preventDefault()
-          if (pdOver !== col) { pdClearOver(); pdOver = col; col.classList.add('drag-over') }
-          // S175: a FOLDED box is a drop TARGET but not a placement preview — the card
-          // stays visible in its source list while the narrow chip highlights; the DROP
-          // itself unfolds the box and lands the card (pdCompleteDrop's hint).
-          if (col.hasAttribute('data-collapsed')) return
-          pdPlaceInList(col, pdDrag, e.clientX, e.clientY)
+          // the cue + placement ride the rAF batch now (preventDefault stays
+          // synchronous — this page allows the drop only over a .pd-col)
+          pdDndSchedule({ col, x: e.clientX, y: e.clientY })
         })
         // S151: the drop CONTRACT is a named function so the touch path (below) can
         // land through the exact same PATCH + same-beat repaint flow — one drop
@@ -5780,6 +5848,9 @@
         ctx.on('drop', (e) => {
           if (!pdDrag) return
           e.preventDefault()
+          // FE-2: the LAST sample's placement lands NOW — pdCompleteDrop reads the
+          // live DOM for the reorder ids (sync dragover→drop pairs, e2e included)
+          pdDndFlush()
           const el = pdDrag
           pdDrag = null
           // S175: the pointer's column rides along as the drop hint (a folded box can
@@ -5788,6 +5859,10 @@
           return pdCompleteDrop(el, hint)
         })
         ctx.on('dragend', () => {
+          pdDndFlush() // the pending placement (if any) lands before the teardown
+          window.removeEventListener('scroll', pdDndOnScroll, true)
+          pdDndRects = null
+          pdDndPending = null
           pdClearOver()
           if (pdDrag) { pdDrag.classList.remove('dragging'); pdDrag = null }
         })
@@ -5814,7 +5889,12 @@
             if (pdTouch.active) {
               pdTouch.wrap.classList.remove('dragging', 'touch-lift')
               pdClearOver()
-              if (pdDrag === pdTouch.wrap) pdDrag = null
+              if (pdDrag === pdTouch.wrap) {
+                pdDrag = null
+                window.removeEventListener('scroll', pdDndOnScroll, true)
+                pdDndRects = null
+                pdDndPending = null
+              }
             }
             pdTouch = null
           }
@@ -5833,6 +5913,8 @@
               if (!pdTouch || pdTouch.wrap !== wrap) return
               pdTouch.active = true
               pdDrag = wrap // the shared drag state stays coherent for both paths
+              pdDndRects = null // a fresh drag invalidates any prior cache
+              window.addEventListener('scroll', pdDndOnScroll, true)
               wrap.classList.add('dragging', 'touch-lift')
               try { if (navigator.vibrate) navigator.vibrate(12) } catch { /* no haptics — fine */ }
             }, 260)
@@ -5848,20 +5930,18 @@
               return
             }
             e.preventDefault() // the active drag owns the gesture (non-passive listener)
-            const under = document.elementFromPoint(t.clientX, t.clientY)
-            const colEl = under && under.closest ? under.closest('#pd-board .pd-col') : null
-            if (colEl && pdOver !== colEl) { pdClearOver(); pdOver = colEl; colEl.classList.add('drag-over') }
-            // S175: a FOLDED box highlights as a target but takes no placement preview
-            // (same contract as the mouse dragover above — the drop unfolds + lands).
-            if (colEl && !colEl.hasAttribute('data-collapsed')) pdPlaceInList(colEl, pdTouch.wrap, t.clientX, t.clientY)
+            // S254 (FE-2): the per-move elementFromPoint + placement ride the rAF
+            // batch (the frame resolves the column + applies the cached-rect
+            // placement); touchend FLUSHES before the drop reads the DOM.
+            pdDndSchedule({ x: t.clientX, y: t.clientY })
           }, { passive: false })
           document.addEventListener('touchend', () => {
             if (!pdTouch) return
             const wasActive = pdTouch.active
             const wrap = pdTouch.wrap
-            // S175: capture the highlighted column BEFORE the reset clears pdOver —
-            // the finger's release point names the destination (folded-box unfolds).
-            const hint = wasActive ? pdOver : null
+            // FE-2: the LAST touchmove sample lands NOW — pdCompleteDrop reads the
+            // live DOM for the reorder ids, and the hint (pdOver) is captured after
+            const hint = wasActive ? (pdDndFlush(), pdOver) : null
             pdTouchReset()
             if (!wasActive) return
             pdSuppressClickUntil = Date.now() + 450

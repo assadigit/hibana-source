@@ -1472,25 +1472,81 @@
         }
         // Live-place the dragged card inside a column's list (visual feedback + ensures
         // the drop below reads the destination the pointer named, not the card's origin).
-        const placeInList = (col, x, y) => {
-          const list = col.querySelector('.pd-tasks')
-          if (!list || !drag) return
-          const hit = (Number.isFinite(x) && Number.isFinite(y)) ? document.elementFromPoint(x, y) : null
-          const target = hit && hit.closest ? hit.closest('[data-task-card]') : null
-          const addBtn = list.querySelector('.pd-task-add')
-          // guard list.contains(target): elementFromPoint can return a card that lives
-          // in a DIFFERENT column (a tall neighbor bleeding into the pointer) —
-          // insertBefore would throw NotFoundError. Only place relative to a target that
-          // is genuinely a child of THIS list.
-          if (target && target !== drag && list.contains(target)) {
-            const r = target.getBoundingClientRect()
-            const after = y > r.top + r.height / 2
-            list.insertBefore(drag, after ? target.nextSibling : target)
-          } else if (addBtn) {
-            list.insertBefore(drag, addBtn) // append to the end (just above Add task)
-          } else {
-            list.appendChild(drag)
+        // S254 (FE-2): the placement work is rAF-BATCHED — dragover fires at pointer
+        // frequency (per-pointermove on touch, continuously on mouse) and the old
+        // unbatched handler ran an elementFromPoint hit-test + a getBoundingClientRect
+        // + an insertBefore on EVERY event (layout thrash: every insert invalidated
+        // layout, forcing the next event's hit-test into a full relayout). One
+        // scheduled frame now does the work with the LATEST sample; the RECT CACHE
+        // below answers "which card is under the pointer" with pure math while the
+        // pointer hovers one column (zero layout reads per frame), rebuilt only when
+        // the column changes, an insert actually shifts siblings, or a scroll moves
+        // the viewport (the capture listener below). preventDefault stays SYNCHRONOUS
+        // per event — the browser refuses drops where dragover didn't cancel.
+        let dndFrame = 0
+        let dndPending = null // { target, clientX, clientY } — the latest dragover sample
+        let dndRects = null // { col, list, cards: [{el, top, mid, bottom}], stale }
+        const dndBuildRects = (col, list) => {
+          const cards = []
+          for (const el of list.querySelectorAll('[data-task-card]')) {
+            if (el === drag) continue // the dragged card's own rect never places it
+            const r = el.getBoundingClientRect()
+            cards.push({ el, top: r.top, mid: r.top + r.height / 2, bottom: r.bottom })
           }
+          return { col, list, cards, stale: false }
+        }
+        // the viewport can scroll DURING a native drag (browser auto-scroll near the
+        // edges) — cached client rects go stale the moment it does. Capture phase:
+        // scroll events don't bubble.
+        const dndOnScroll = () => { if (dndRects) dndRects.stale = true }
+        const dndPlace = (p) => {
+          const col = colAt(p)
+          if (!col) return
+          const list = col.querySelector('.pd-tasks')
+          if (!list) return
+          if (over !== col) { clearOver(); over = col; col.classList.add('drag-over') } // the S136 column cue
+          if (!dndRects || dndRects.col !== col || dndRects.stale) dndRects = dndBuildRects(col, list)
+          const y = p.clientY
+          const cards = dndRects.cards
+          // which card does the pointer sit on? (the cache's pure-math twin of the old
+          // elementFromPoint + closest + getBoundingClientRect chain — including the
+          // cross-column guard: only THIS list's own cards are candidates)
+          let desired = null // the insertBefore anchor (null = append)
+          for (let i = 0; i < cards.length; i++) {
+            const c = cards[i]
+            if (y < c.top) { desired = c.el; break }
+            if (y <= c.bottom) { desired = y > c.mid ? c.el.nextSibling : c.el; break }
+          }
+          if (!desired && cards.length) {
+            const addBtn = list.querySelector('.pd-task-add')
+            desired = addBtn || null // below the last card → just above Add task
+          }
+          // insert ONLY when the position actually changed — a same-position
+          // insertBefore is still a DOM mutation (layout invalidation per frame)
+          const anchorEl = desired === drag ? null : desired
+          if (anchorEl === null) {
+            if (drag !== list.lastElementChild) { list.appendChild(drag); dndRects.stale = true }
+          } else if (drag.nextSibling !== anchorEl) {
+            list.insertBefore(drag, anchorEl)
+            dndRects.stale = true
+          }
+        }
+        const dndSchedule = (e) => {
+          dndPending = { target: e.target, clientX: e.clientX, clientY: e.clientY }
+          if (dndFrame) return
+          dndFrame = requestAnimationFrame(() => {
+            dndFrame = 0
+            if (!drag || !dndPending) return
+            dndPlace(dndPending)
+          })
+        }
+        // the drop/dragend contract: the LAST dragover's placement must land BEFORE
+        // the ids are read (the e2e suite fires dragover→drop synchronously — the
+        // pending frame would otherwise still be queued when drop runs)
+        const dndFlush = () => {
+          if (dndFrame) { cancelAnimationFrame(dndFrame); dndFrame = 0 }
+          if (drag && dndPending) dndPlace(dndPending)
+          dndPending = null
         }
         ctx.on('dragstart', (e) => {
           const card = e.target.closest('[data-task-card]')
@@ -1499,6 +1555,8 @@
           // same markup but never start a board drag.
           if (card.closest('.db-focus-sheet')) return
           drag = card
+          dndRects = null // a fresh drag invalidates any prior cache
+          window.addEventListener('scroll', dndOnScroll, true)
           e.dataTransfer.effectAllowed = 'move'
           e.dataTransfer.setData('text/plain', card.dataset.taskCard)
           card.classList.add('dragging')
@@ -1513,19 +1571,16 @@
           e.preventDefault()
           // S136: the drop CUE is the COLUMN (.pd-col.drag-over — the pd recipe,
           // project-header.css), not a dashed body outline; the live-reorder still
-          // inserts inside the column's .pd-tasks list.
-          const col = colAt(e)
-          if (!col) return
-          const list = col.querySelector('.pd-tasks')
-          if (!list) return
-          clearOver()
-          over = col
-          col.classList.add('drag-over')
-          placeInList(col, e.clientX, e.clientY)
+          // inserts inside the column's .pd-tasks list — now inside the rAF batch.
+          dndSchedule(e)
         })
         ctx.on('drop', async (e) => {
           if (!drag) return
           e.preventDefault()
+          // FE-2: apply the LAST dragover sample NOW — the reorder ids below read the
+          // live DOM, exactly what the old synchronous handler left behind (the e2e
+          // suite's dragover→drop pairs are synchronous; the frame would be too late).
+          dndFlush()
           const id = drag.dataset.taskCard
           // The destination is the column under the POINTER (not the dragged card's
           // current parent — the live placement above usually relocates it, but a drop
@@ -1581,7 +1636,14 @@
             await reload()
           }
         })
-        ctx.on('dragend', () => { clearOver(); if (drag) { drag.classList.remove('dragging'); drag = null } })
+        ctx.on('dragend', () => {
+          dndFlush() // the pending placement (if any) lands before the drag tears down
+          window.removeEventListener('scroll', dndOnScroll, true)
+          dndRects = null
+          dndPending = null
+          clearOver()
+          if (drag) { drag.classList.remove('dragging'); drag = null }
+        })
 
         // S136: the SEARCH INPUT — debounced like the project page's (pdFilterSearch
         // timer); a full render keeps ONE filtering model (the bar's value attr carries

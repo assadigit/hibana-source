@@ -268,6 +268,29 @@ export async function ownedBacklogDoc(cfg: Config, userId: string, id: string): 
   return rows[0] ?? null
 }
 
+// ---- S255 (BE-3 — AUDIT-REMEDIATION-SPEC §7 step 1): the lean sprint rows ----------
+// The board payload ships every sprint's FULL description (up to 100k chars each —
+// the audit's BE-3: bytes no board/sprint surface renders). ?lean=1 opts into a
+// diet variant: description is OMITTED and a tiny derived field rides instead —
+// doc_checked, the count of "- [x] " checked plan lines (the EXACT grammar the
+// sprint page's chip stat has always read off s.description client-side; computed
+// server-side here so the lean consumer never needs the heavy field). The DEFAULT
+// payload is byte-identical (desktop + the s241 contract untouched).
+
+/** The ☑ grammar: lines starting "- [x] " — byte-identical to the island's
+ * sprint-page.js `match(/^- \[x\] /gm)` fold (the chip's "doc checkboxes done"
+ * stat). One seam, so the lean field and any client-side fold agree forever. */
+export function sprintDocCheckedCount(description: string | null | undefined): number {
+  return (String(description ?? '').match(/^- \[x\] /gm) || []).length
+}
+
+/** BE-3's lean transform: strip `description`, add `doc_checked`. Every other
+ * column rides verbatim (the desktop's Go BoardPayload ignores unknown keys, and
+ * the web island reads name/emoji/status/dates/due fields it always had). */
+export function leanSprintRows(sprints: SprintRow[]): (Omit<SprintRow, 'description'> & { doc_checked: number })[] {
+  return sprints.map(({ description, ...rest }) => ({ ...rest, doc_checked: sprintDocCheckedCount(description) }))
+}
+
 // ---- task labels (S29 agenda 5 follow-up — user request 2026-09-12) -----------------------
 // "each task can have label or meta tag, for example UI/UX, Security". dev_task_tags (0029)
 // links tasks to the user-scoped tags table; these helpers normalize + find-or-create +

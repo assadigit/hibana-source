@@ -216,6 +216,7 @@ import {
   strategyNameTaken, // S250: case-insensitive project-scoped name uniqueness (the sprint grammar)
   strategyAssignable, // S250: the assignment guard — active+paused only, completed never
   STRATEGY_PRIO_ORDER_SQL, // S250: priority-first board order (the task-column rule)
+  leanSprintRows, // S255 (BE-3): the ?lean=1 board payload's sprint-row transform
 } from './devboard-helpers'
 
 export function devboardRoutes(cfg: Config) {
@@ -227,6 +228,12 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
+    // S255 (BE-3 — AUDIT-REMEDIATION-SPEC §7 step 1): the OPT-IN payload diet.
+    // ?lean=1 omits sprints[].description (up to 100k chars each that no board or
+    // sprint surface renders) and adds the tiny derived doc_checked in its place;
+    // the DEFAULT payload is byte-identical — the desktop mirror + the s241
+    // island-shape contract ride the default and are untouched by design.
+    const lean = c.req.query('lean') === '1'
     const [tasks, sprints, tags, taskTags, categories, taskDeps, strategies] = await Promise.all([
       cfg.db.query<DevTaskRow & { tags: string; shot_count: number }>(
         // S29 follow-up: PRIORITY-FIRST ordering — tasks auto-sort urgent → high →
@@ -288,7 +295,11 @@ export function devboardRoutes(cfg: Config) {
       // every legacy key intact (pinned by the S241 island-shape test).
       tasks: boardTaskRows(tasks, sprints),
       categories,
-      sprints,
+      // S255 (BE-3): the lean variant strips description + adds doc_checked; the
+      // default rows ride verbatim (the effective-deadline fold above always sees
+      // the FULL rows — description plays no part in it, but the fold runs before
+      // the transform so both payload variants share one code path).
+      sprints: lean ? leanSprintRows(sprints) : sprints,
       tags,
       // S250: the 8th additive key — the strategy registry (spec §4). Every pre-S250
       // client (the desktop island pre-re-pin included) ignores unknown keys; the
@@ -879,6 +890,19 @@ export function devboardRoutes(cfg: Config) {
     }
     await logHistory(cfg, p.id, t('{name} defined', '{name} تعریف شد', { name }))
     return c.json({ ok: true, id, name, version: body.version ?? null, draft: true }, 201)
+  })
+
+  // S255 (BE-3 — AUDIT-REMEDIATION-SPEC §7 step 1): the additive DOC read surface —
+  // the full sprint row (description included), owner-gated through ownedSprint's
+  // user-scoped join exactly like every other /api/sprints/:id route. The lean
+  // payload's consumers fetch this ON OPEN when they need the heavy field; the
+  // default payload (desktop mirror included) never needs it — it already carries
+  // the doc. Additive-only: a new endpoint, zero existing surface touched.
+  app.get('/api/sprints/:id/doc', async (c) => {
+    const user = c.get('user')
+    const s = await ownedSprint(cfg, user.id, c.req.param('id'))
+    if (!s) return errJson(c, ErrorCode.not_found)
+    return c.json(s)
   })
 
   app.post('/api/sprints/:id/start', async (c) => {

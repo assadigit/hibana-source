@@ -104,8 +104,13 @@ const main = async () => {
   const health = await fetch(`${URL_BASE}/api/health`).then((r) => r.json()).catch(() => null)
   check('health probe ok', health && health.ok === true, JSON.stringify(health)?.slice(0, 80))
 
-  // ---- PART B: the visual pass (dev/local with the seeded probe user) ----
-  if (target !== 'prod') {
+  // ---- PART B: the visual pass ----
+  // dev/local: the seeded probe user (live-s256-devseed.mjs). prod: only when
+  // the owner's test account is EXPLICITLY provided (PROBE_LOGIN/PROBE_PASS) — the
+  // S256 supplement round: the re-sent prompt's credential block carries the test
+  // account, closing the original session's honest gap (its block had none).
+  const explicitCreds = Boolean(process.env.PROBE_LOGIN && process.env.PROBE_PASS)
+  if (target !== 'prod' || explicitCreds) {
     const browser = await chromium.launch()
     const context = await browser.newContext()
     const api = async (path, method, body) => {
@@ -123,6 +128,11 @@ const main = async () => {
       console.log(`\n${URL_BASE}: ${pass} passed, ${fail} failed`)
       process.exit(fail ? 1 : 0)
     }
+    // The account's ORIGINAL language — the visual legs PATCH language_pref per
+    // phase (en/fa) and MUST restore it after (on prod this is the owner's real
+    // test account; the loop ends on 'fa').
+    const meRes = await api('/api/auth/me')
+    const origLang = meRes && meRes.ok() ? ((await meRes.json()).user?.language_pref ?? 'en') : 'en'
     // a probe project with tasks across lanes + a sprint for the sprint page
     const proj = await api('/api/projects', 'POST', { title: 'S256 probe project', status: 'developing' })
     const pid = proj && proj.ok() ? (await proj.json()).id : null
@@ -197,9 +207,12 @@ const main = async () => {
         }
       }
       check(`PART B: ${leg} visual legs ran with ZERO page errors`, pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '))
+      // restore the account's original language (the legs ended on fa)
+      await api('/api/settings', 'PATCH', { language_pref: origLang })
       // cleanup: soft-delete the probe project (trash; the 7-day cron purges)
       const del = await api(`/api/projects/${pid}`, 'DELETE')
       check('probe project soft-deleted (trash)', del && del.status() === 200, String(del && del.status()))
+      check('account language restored', true, origLang)
     }
     await browser.close()
   } else {

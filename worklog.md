@@ -375,3 +375,50 @@ comment drift fixed), desktop.yml WEB_REF+WEB_VERSION twins moved together.
 **Next:** Phase 6 (S257) — Backend modularization (the devboard split,
 BE-11/13/14/15/16/17, FN-ALLOWLIST re-pins) — zero route-path changes, desktop
 no-op by design.
+
+---
+
+## Session S256 (supplement) — the re-sent prompt's round: the authed live visual pass + the close ritual's credential-dependent halves (2026-11-08)
+
+**The situation:** the owner re-sent the Phase 5 §13 prompt with a FRESH credential
+block (the prod test account + the D1-correct Cloudflare account + the healthchecks
+management/read keys + the Telegram bot token). By the time this session cloned, a
+parallel S256 run had ALREADY shipped and closed the phase (836cc18e→6db3ae9,
+v0.4.1.49 live; desktop v0.1.50 re-pinned + released, all 14 probes green) — its
+honest gap: its own credential block carried a Cloudflare token for the WRONG
+account (the devseed's `d1 execute` 404s) and NO prod test account, so the authed
+live visual matrix + the zip + the healthcheck ping + the Telegram notify never ran.
+This session detected the duplication at push time (rejected, non-fast-forward — no
+history rewrite per §0.2), reset to origin/main, and closed EXACTLY those gaps:
+
+- **THE AUTHED LIVE VISUAL PASS (§8 step 5, the phase's missing leg):** the probe's
+  PART B unlocked on prod (explicit PROBE_LOGIN/PROBE_PASS — `scripts/live-s256-probe.mjs`
+  now runs the visual matrix on prod when the test account is provided, and RESTORES
+  the account's language_pref after: the loop ends on 'fa' and prod is the owner's
+  real account). **PROD 67/67** (the test account: 16 legs = {en,fa}×{light,claude-dark}×
+  {board,sprint,projects,project} — the bundles parse 4048/4098 rules, the theme
+  tokens paint, FA flips dir=rtl, content renders, ZERO page errors; the probe
+  project soft-deleted; the language restored) and **DEV 67/67** (the seeded probe
+  user — the devseed ran with THIS block's `6ff25b…`-account token, the exact
+  credential the parallel session lacked; the probe user + archive orphans purged
+  after: 0 users / 0 orphans).
+- **THE ZIP:** `hibana.0.4.1.49.zip` → the sandbox download folder (wired-HTML
+  build, 681 tracked + 80 dist files, integrity OK, **secret-scan CLEAN** — every
+  credential value from the block scans zero; the ghp_/cfut_ grep hits are the ops
+  scripts' own regex literals + redacted history prose, verified by inspection).
+- **THE HEALTHCHECK PING:** via the **REAL per-check URL from the management API**
+  (the "Hibana" check, slug e24cc4eb…, its API-served ping_url pinged → HTTP 200 →
+  last-ping moved to 20:18:37Z — NOT the credentials block's guessed
+  `…/<pingkey>/hibana` slug path; the S253 doctrine re-confirmed: the block's
+  slug-path URL is not the check's real ping URL).
+- **THE TELEGRAM NOTIFY:** delivered to the owner-role chat (the app's own routing —
+  the linked chat resolved from prod's telegram_captures; sendMessage HTTP 200).
+
+**The parallel-implementation note (honest):** this session had independently built
+and fully verified a parallel FE-5/FE-13 round before the fetch revealed the closed
+phase (998/998 vitest + 510/510 e2e + a mobile Lighthouse before/after + a 114-check
+local visual rehearsal). It was NOT pushed — the phase was closed and §0.2 forbids
+rewriting published history — and is preserved locally on branch
+`s256-parallel-superseded` for reference. The shipped design stands.
+
+**Next:** unchanged — Phase 6 (S257), Backend modularization.

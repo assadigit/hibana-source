@@ -291,6 +291,78 @@ export function leanSprintRows(sprints: SprintRow[]): (Omit<SprintRow, 'descript
   return sprints.map(({ description, ...rest }) => ({ ...rest, doc_checked: sprintDocCheckedCount(description) }))
 }
 
+// ---- S255 (BE-25 — AUDIT-REMEDIATION-SPEC §7 step 2): the board GET's version stamp ----
+// The old etag() hashed the FULL assembled body per request — the DB cost was the
+// same and the hash itself walked every byte. This probe is ONE round trip that
+// fingerprints everything the payload derives from, checked BEFORE the seven-query
+// assembly: a matching If-None-Match answers 304 without assembling anything.
+//
+// COVERAGE (the correctness contract — a mutation the stamp cannot see would serve
+// a stale 304, so every payload-affecting write MUST move at least one component):
+//   - dev_tasks:  COUNT + MAX(updated_at). Every column edit stamps updated_at
+//     (0061); INSERT stamps it; DELETE/archive moves COUNT. The one writer that
+//     did NOT stamp — reorder (sort_order only) — stamps it since S255 (BE-25).
+//   - sprints:    COUNT + MAX(updated_at). Every lifecycle write stamps it
+//     (POST/PATCH/start/pause/resume/finish/reopen all do); create/delete move COUNT.
+//   - strategies: COUNT + MAX(updated_at) (the D8 doctrine stamps every write).
+//   - tags:       the user's FULL library fingerprint (id+name+color+usage_count) —
+//     the table has no updated_at, so renames/recolors/usage shifts are caught by
+//     content, and the payload ships the whole library.
+//   - dev_task_tags links: COUNT for this project (link add/remove).
+//   - dev_task_deps: COUNT for this project (edges are add/remove-only).
+//   - categories: fingerprint of the payload-visible set (id+name+colors+archived+
+//     sort_order+enabled) — the exact WHERE the payload query uses, so global
+//     renames, recolors, archives and per-project toggles all move it.
+//   - screenshots: per-project fingerprint of (id, task_id) — upload/delete/pin/
+//     unpin/re-pin all move it (shot_count is the only payload consumer).
+//   - the project row itself (title/status/type/updated_at) rides from the row the
+//     route already fetched — no extra probe.
+// The probe is belt-wrapped: ANY failure (a lagging pre-0066 D1 without the
+// strategies table, for instance) returns '' and the route falls back to the old
+// body-hash etag — correct, just slower.
+
+/** FNV-1a 32-bit (the etag() recipe in lib/http.ts) — one spelling so the stamp
+ * and the legacy body hash share a validator grammar. */
+function fnv1a(s: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(36)
+}
+
+export async function boardVersionStamp(cfg: Config, userId: string, p: { id: string; title: string; status: string; type: string | null; updated_at: string }): Promise<string> {
+  try {
+    const rows = await cfg.db.query<Record<string, string | number>>(
+      `SELECT
+        (SELECT COUNT(*) || '/' || COALESCE(MAX(updated_at), '') FROM dev_tasks WHERE project_id = ?1) AS tasks_v,
+        (SELECT COUNT(*) || '/' || COALESCE(MAX(updated_at), '') FROM sprints WHERE project_id = ?1) AS sprints_v,
+        (SELECT COUNT(*) || '/' || COALESCE(MAX(updated_at), '') FROM strategies WHERE project_id = ?1) AS strategies_v,
+        (SELECT COALESCE(GROUP_CONCAT(id || CHAR(31) || name || CHAR(31) || color || CHAR(31) || usage_count, CHAR(30)), '') FROM (SELECT id, name, color, usage_count FROM tags WHERE user_id = ?2 ORDER BY id)) AS tags_v,
+        (SELECT COUNT(*) FROM dev_task_tags tt JOIN dev_tasks t ON t.id = tt.task_id WHERE t.project_id = ?1) AS links_v,
+        (SELECT COUNT(*) FROM dev_task_deps dd JOIN dev_tasks t ON t.id = dd.blocked_task_id WHERE t.project_id = ?1) AS deps_v,
+        (SELECT COALESCE(GROUP_CONCAT(c.id || CHAR(31) || c.name || CHAR(31) || c.color_fill || CHAR(31) || c.color_text || CHAR(31) || c.is_archived || CHAR(31) || c.sort_order || CHAR(31) || COALESCE((SELECT COUNT(*) FROM project_categories pc WHERE pc.category_id = c.id AND pc.project_id = ?1), 0), CHAR(30)), '')
+           FROM (SELECT c.id, c.name, c.color_fill, c.color_text, c.is_archived, c.sort_order FROM categories c
+                 WHERE c.id IN (SELECT category_id FROM dev_tasks WHERE project_id = ?1 AND category_id IS NOT NULL)
+                    OR (c.is_archived = 0 AND c.id IN (SELECT category_id FROM project_categories WHERE project_id = ?1))
+                 ORDER BY c.id)) AS cats_v,
+        (SELECT COALESCE(GROUP_CONCAT(id || CHAR(31) || COALESCE(task_id, '-'), CHAR(30)), '') FROM (SELECT id, task_id FROM screenshots WHERE project_id = ?1 ORDER BY id)) AS shots_v`,
+      [p.id, userId],
+    )
+    const r = rows[0]
+    if (!r) return ''
+    const parts = [
+      String(r.tasks_v), String(r.sprints_v), String(r.strategies_v), String(r.tags_v),
+      String(r.links_v), String(r.deps_v), String(r.cats_v), String(r.shots_v),
+      `${p.updated_at}/${p.title}/${p.status}/${p.type ?? ''}`,
+    ]
+    return fnv1a(parts.join('\u001e'))
+  } catch {
+    return '' // belt: any probe failure → the caller falls back to the body-hash etag
+  }
+}
+
 // ---- task labels (S29 agenda 5 follow-up — user request 2026-09-12) -----------------------
 // "each task can have label or meta tag, for example UI/UX, Security". dev_task_tags (0029)
 // links tasks to the user-scoped tags table; these helpers normalize + find-or-create +

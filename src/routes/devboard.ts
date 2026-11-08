@@ -217,6 +217,7 @@ import {
   strategyAssignable, // S250: the assignment guard — active+paused only, completed never
   STRATEGY_PRIO_ORDER_SQL, // S250: priority-first board order (the task-column rule)
   leanSprintRows, // S255 (BE-3): the ?lean=1 board payload's sprint-row transform
+  boardVersionStamp, // S255 (BE-25): the one-round-trip version stamp behind the board GET's 304s
 } from './devboard-helpers'
 
 export function devboardRoutes(cfg: Config) {
@@ -234,6 +235,21 @@ export function devboardRoutes(cfg: Config) {
     // the DEFAULT payload is byte-identical — the desktop mirror + the s241
     // island-shape contract ride the default and are untouched by design.
     const lean = c.req.query('lean') === '1'
+    // S255 (BE-25 — AUDIT-REMEDIATION-SPEC §7 step 2): the version-stamp weak ETag,
+    // checked BEFORE the seven-query assembly. ONE cheap probe fingerprints every
+    // table the payload derives from (see boardVersionStamp's coverage contract);
+    // a matching If-None-Match answers 304 with zero assembly — the desktop sync
+    // round's conditional poll (client.go's get() sends the stored validator) skips
+    // the whole load on unchanged boards. The tag carries the lean marker so the
+    // two payload variants never cross-304. A NON-conditional request never 304s
+    // (exact-match against the sent header), so the desktop's RequestFresh path
+    // and the web island's no-store GETs are untouched. Stamp probe failure (a
+    // lagging D1) falls through to the legacy body-hash etag below — belt, not break.
+    const stamp = await boardVersionStamp(cfg, user.id, p)
+    const tag = stamp ? `W/"${lean ? 'l' : 'b'}${stamp}"` : ''
+    if (tag && c.req.header('If-None-Match') === tag) {
+      return new Response(null, { status: 304, headers: { ETag: tag, 'Cache-Control': 'private, no-cache' } })
+    }
     const [tasks, sprints, tags, taskTags, categories, taskDeps, strategies] = await Promise.all([
       cfg.db.query<DevTaskRow & { tags: string; shot_count: number }>(
         // S29 follow-up: PRIORITY-FIRST ordering — tasks auto-sort urgent → high →
@@ -288,7 +304,7 @@ export function devboardRoutes(cfg: Config) {
         [p.id],
       ).catch(() => [] as StrategyRow[]),
     ])
-    return await etag(c, c.json({
+    const boardRes = c.json({
       project: { id: p.id, title: p.title, status: p.status, type: p.type },
       // S241 (spec §10/§18): task rows carry the server-computed effective deadline
       // (personal > sprint-inherited-while-not-completed > none) — additive fields,
@@ -311,7 +327,16 @@ export function devboardRoutes(cfg: Config) {
       // S241: flat dep edges ({blocker_task_id, blocked_task_id}) — the client folds
       // Blocked-by and the reverse Blocks-N counts by task (spec §15).
       task_deps: taskDeps,
-    }))
+    })
+    // S255 (BE-25): the stamp ETag rides the 200s too — it is the validator the
+    // NEXT conditional request compares against (the desktop poll stores it
+    // client-side; client.go's absorb). Same headers the legacy etag() stamped.
+    if (tag) {
+      boardRes.headers.set('ETag', tag)
+      boardRes.headers.set('Cache-Control', 'private, no-cache')
+      return boardRes
+    }
+    return await etag(c, boardRes) // belt: the stamp probe failed — the old body-hash path
   })
 
   // ---- dev tasks --------------------------------------------------------------
@@ -378,9 +403,17 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
+    // S255 (BE-25 — the stamp-coverage fix): reorder stamps updated_at on every
+    // moved row. sort_order IS a payload column (the board's ORDER BY reads it),
+    // so a reorder that stamped nothing would leave the board GET's version stamp
+    // unchanged — a conditional poll could 304 past the new order. The 0061
+    // doctrine ("every column edit stamps the task's updated_at") extends to the
+    // one writer it never covered. Rows the body omits keep their stamps (the
+    // client sends the full affected list; an untouched row's order didn't move).
+    const now = new Date().toISOString()
     await cfg.db.transaction(async (tx) => {
       body.ids.forEach((id, i) => {
-        tx.sql('UPDATE dev_tasks SET sort_order = ? WHERE id = ? AND project_id = ?', [i, id, p.id])
+        tx.sql('UPDATE dev_tasks SET sort_order = ?, updated_at = ? WHERE id = ? AND project_id = ?', [i, now, id, p.id])
       })
     })
     return c.json({ ok: true })

@@ -38,10 +38,11 @@ import { runInNewContext } from 'node:vm'
 // │    vs " security " … another project → 201' (project-scoped 409) + API     │
 // │    'rule 1 scoping — a stranger's … edges never leak'                      │
 // │  2 name required + unique case-insensitive  DOM §4.3 create + 'PATCH       │
-// │    rename: onto a sibling case-twin → 409' + 'legacy case-twins …          │
-// │    write-time only' + S242 quick-create required-name + E242 duplicate 409 │
-// │    INLINE (server auto-names nameless creates — assumption 7, DOM 'the     │
-// │    auto-generated name bumps past collisions')                             │
+// │    rename: onto a sibling case-twin → 409' + 'case-twin names: the 0067     │
+// │    belt refuses them at the DB layer' (S253 re-pin) + S242 quick-create     │
+// │    required-name + E242 duplicate 409 INLINE (server auto-names nameless    │
+// │    creates — assumption 7, DOM 'the auto-generated name bumps past          │
+// │    collisions')                                                             │
 // │  3 emoji optional + picker + default fallback  S242 'every option wears    │
 // │    the identity glyph' + 'the emoji picker rides board.html + sprint.html' │
 // │    + 'the badge renders as its own row (emoji else ◆ + name)' + E242       │
@@ -275,7 +276,7 @@ const CITATIONS: { row: string; file: string; title: string }[] = [
   { row: '§21-1 per-project collection', file: 'src/tests/sprint-deadline-deps-domain.test.ts', title: 'create: Security vs SECURITY vs " security " in one project' },
   { row: '§21-1 per-project collection (scoping)', file: 'src/tests/api-surface-s241.test.ts', title: "rule 1 scoping — a stranger's (or another project's) edges never leak into this payload" },
   { row: '§21-2 name required + case-insensitive unique', file: 'src/tests/sprint-deadline-deps-domain.test.ts', title: "PATCH rename: onto a sibling case-twin" },
-  { row: '§21-2 legacy case-twins readable', file: 'src/tests/sprint-deadline-deps-domain.test.ts', title: 'legacy case-twins (pre-0065 rows) stay readable' },
+  { row: '§21-2 legacy case-twins readable', file: 'src/tests/sprint-deadline-deps-domain.test.ts', title: 'case-twin names: the 0067 belt refuses them at the DB layer' },
   { row: '§21-2 nameless auto-name', file: 'src/tests/sprint-deadline-deps-domain.test.ts', title: 'the auto-generated name bumps past collisions' },
   { row: '§21-2 quick-create required name', file: 'src/tests/sprint-ui-s242.test.ts', title: 'the dialog: required name, emoji picker, OFF-by-default description + due toggles' },
   { row: '§21-2/§21-15 duplicate 409 INLINE', file: 'e2e/s242-sprint-ui.spec.ts', title: 'the quick-create dialog: name + emoji picker + duplicate 409 INLINE + auto-select on success' },

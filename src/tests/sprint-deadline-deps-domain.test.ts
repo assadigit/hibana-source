@@ -185,24 +185,28 @@ describe('S240 §4.3 — sprint name uniqueness (case-insensitive, project-scope
     } finally { close() }
   })
 
-  it('legacy case-twins (pre-0065 rows) stay readable — the gate is write-time only', async () => {
+  it('case-twin names: the 0067 belt refuses them at the DB layer; the write gate still 409s (re-pinned S253)', async () => {
     const { db, close } = makeTestDb()
     try {
       const userId = await makeUser(db)
       const { app, headers } = await makeApp(db, userId)
       const pid = await createProject(app, headers, 'legacy twins probe')
-      // raw rows a pre-0065 install could carry — the 0065 backfill never reconciles
-      // name case-twins, and per the pack (write-time enforcement only) no migration
-      // or read path may fail on them. Two CLOSED windows (completed — disjoint ranges,
-      // no draft, so the one-draft-per-project rule never trips first).
+      // S240 §4.3's original pin seeded same-project case-twins as raw rows (a state a
+      // pre-0065 install could carry) and asserted the READ path tolerated them. 0067
+      // (S253, the audit's DB-2) closed that door at the persistence layer: the
+      // expression unique idx_sprints_project_name now refuses the twin INSERT itself
+      // (the belt-first probes proved live data carries ZERO twins, so the index
+      // applied clean — this pin is the guarantee that the state can never return).
       await db.execute("INSERT INTO sprints (id, project_id, name, started_at, ended_at, created_at, is_draft, status) VALUES ('legacy-a', ?, 'Legacy Twin', '2026-01-01T00:00:00.000Z', '2026-01-10T00:00:00.000Z', ?, 0, 'completed')", [pid, nowIso()])
-      await db.execute("INSERT INTO sprints (id, project_id, name, started_at, ended_at, created_at, is_draft, status) VALUES ('legacy-b', ?, 'legacy twin', '2026-02-01T00:00:00.000Z', '2026-02-10T00:00:00.000Z', ?, 0, 'completed')", [pid, nowIso()])
-      // the board payload (the READ path every client rides) answers with BOTH rows
+      await expect(
+        db.execute("INSERT INTO sprints (id, project_id, name, started_at, ended_at, created_at, is_draft, status) VALUES ('legacy-b', ?, 'legacy twin', '2026-02-01T00:00:00.000Z', '2026-02-10T00:00:00.000Z', ?, 0, 'completed')", [pid, nowIso()]),
+      ).rejects.toThrow(/UNIQUE constraint failed: index 'idx_sprints_project_name'/)
+      // the board payload (the READ path every client rides) still answers the row
       const res = await app.fetch(new Request(`http://local/api/projects/${pid}/devboard`, { headers }))
       expect(res.status).toBe(200)
       const names = ((await res.json()) as { sprints: { name: string }[] }).sprints.map((s) => s.name)
-      expect(names).toEqual(expect.arrayContaining(['Legacy Twin', 'legacy twin']))
-      // …while the write gate still folds a THIRD case-twin into a 409 (write-time is
+      expect(names).toEqual(expect.arrayContaining(['Legacy Twin']))
+      // …and the write gate still folds a case-twin CREATE into a 409 (write-time is
       // the rule) — the dated create arm, so the create never becomes a draft
       const third = await mkSprint(app, headers, pid, { name: 'LEGACY TWIN', started_at: '2026-03-01T00:00:00.000Z' })
       expect(third.status).toBe(409)

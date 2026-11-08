@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import { makeTestDb, makeUser } from './helpers'
 import { createSession } from '../auth/sessions'
 import { createApp } from '../app'
-import type { Config } from '../types'
 import type { Db, Row, Tx } from '../db/types'
 
 // S253 (Phase 2 — database health, migration 0067): the spec §5.6 regression pins:
@@ -62,13 +61,8 @@ function hideViewDb(db: Db, hideSqlFragment: string): Db {
   }
 }
 
-function makeConfig(db: Db): Config {
-  return { db, isProd: false, github: { owner: 'x', repo: 'y', token: '' } }
-}
-
 const DRAFT_CHECK = 'AND is_draft = 1 ORDER BY created_at DESC' // POST /sprints' draft pre-check (findActiveSprint uses no ORDER BY)
 const SPRINT_NAME_CHECK = 'lower(trim(name)) = lower(trim(?))' // sprintNameTaken
-const STRATEGY_NAME_CHECK = 'lower(trim(name)) = lower(trim(?)) AND' // strategyNameTaken (strategy-scoped shape below)
 
 describe('S253 (0067 belts): a raced create/rename answers the pre-check\'s own 409, never a 500', () => {
   it('one-draft belt: a raced second draft answers draft_exists with the winner\'s id', async () => {
@@ -119,7 +113,7 @@ describe('S253 (0067 belts): a raced create/rename answers the pre-check\'s own 
       const userId = await makeUser(db)
       const { app, headers } = await makeApp(db, userId)
       const pid = await createProject(app, headers, 'belt sprint rename')
-      const s1 = ((await (await mkSprint(app, headers, pid, { name: 'Alpha', started_at: '2026-01-01T00:00:00.000Z', ended_at: '2026-01-10T00:00:00.000Z' })).json()) as { id: string }).id
+      await mkSprint(app, headers, pid, { name: 'Alpha', started_at: '2026-01-01T00:00:00.000Z', ended_at: '2026-01-10T00:00:00.000Z' })
       const s2 = ((await (await mkSprint(app, headers, pid, { name: 'Beta', started_at: '2026-02-01T00:00:00.000Z', ended_at: '2026-02-10T00:00:00.000Z' })).json()) as { id: string }).id
 
       const raced = hideViewDb(db, SPRINT_NAME_CHECK)

@@ -717,3 +717,34 @@ commits + allowlist + probe + release bump).
 
 **Next:** Phase 3 (S254) — Interaction performance (FE-2/3/8/1/10/12/14/15/19/20), the
 island round WITH the full desktop re-pin.
+
+## Session S253 (verification pass) — the re-sent prompt, closed clean (2026-11-08)
+
+The owner's S253 prompt arrived a second time AFTER the phase was already executed and
+closed at `68e9ea06` (spec §14 DONE row, released v0.4.1.46). Correct behavior: RE-VERIFY,
+never re-execute — 0067 is live on both D1s and a re-run of destructive-adjacent steps
+against an already-migrated DB is exactly what the D1 discipline forbids. The re-check,
+all green: both repos clean + pushed (local == origin/main); live health probes dev+prod
+both ok / db up / `schema_version 66`; the automated lane fresh (snapshot
+`2026-11-08T03-23-21Z` + the cron's dead-man ping 3 s later); 0067's file, the worklog
+entry, Changelogs row 253, and all five §9 bookmarks present and consistent.
+
+This pass then COMPLETED the §12.4 close-out remainder the first run never recorded:
+the per-version zip (`hibana.0.4.1.46.zip` → the sandbox download folder; wired-HTML
+build, 783 entries, integrity OK, tree restored byte-clean), the healthcheck ping (NOTE:
+the credentials block's `…/hibana` ping URL **404s** — the check slugs are randomized
+per the §4 doctrine; the correct target is the per-check ping URL from the
+healthchecks.io dashboard/management API. Owner: refresh that credentials line), and
+the Telegram notify to the owner-role chat (the app's own routing: role=owner user's
+linked chat).
+
+**Operational finding (pre-existing, NOT Phase 2):** the "Hibana errors" healthcheck
+went red on two `/fail` pings — Nov-6: "D1 query unreachable after 3 attempts" (a
+CF-API blip on the GitHub runner, not an app error), Nov-7: **25 × 5xx on
+`/api/projects/467a7fd6…/devtasks`, all `D1_ERROR: table dev_tasks has no column named
+due_at`** — the S249 deploy-order window (code referencing `due_at` was live ~2 h 15 m
+before 0065's prod apply at `2026-11-06T19:12:42Z`; one client's 15-second burst
+16:56:55–16:57:10). Zero error_log rows since `2026-11-07T04:23Z`, so the daily
+monitor's next success ping clears the red on its own. No action needed; the lesson
+(code-before-migration windows hurt) is what 0067's header already engineers around
+("safe in BOTH deploy orders").

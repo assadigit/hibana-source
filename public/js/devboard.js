@@ -34,7 +34,11 @@
     const isMutation = !!(opts && opts.method && opts.method !== 'GET')
     const fetchOnce = isMutation ? send() : new Promise((resolve, reject) => {
       const ctl = new AbortController()
-      const timer = setTimeout(() => ctl.abort(), 3000)
+      // S254 (FE-12): the GET first deadline is 8s (was 3s). A 3s abort + retry
+      // DOUBLED the felt latency on genuinely slow networks (the first request
+      // was usually about to land). The signal-wrapped dispatch stays — that's
+      // the actual edge-bug mitigation — and the one retry on abort stays too.
+      const timer = setTimeout(() => ctl.abort(), 8000)
       send(ctl.signal).then(
         (r) => { clearTimeout(timer); resolve(r) },
         (e) => {
@@ -74,7 +78,15 @@
     })
   }
 
-  const t = (key, fallback) => (window.hibanaI18n && window.hibanaI18n.t(key)) || fallback
+  // S254 (FE-15): the s !== k guard — hibanaI18n.t() returns the KEY itself when
+  // both dictionaries miss it (e.g. the dict script never loaded), which is
+  // truthy — the old `|| fallback` shape leaked the raw key ('db.foo') into the
+  // UI instead of this library's own English fallback. board-page.js's _t has
+  // carried the correct guard since S30 batch 5; the library twins adopt it.
+  const t = (key, fallback) => {
+    const s = window.hibanaI18n ? window.hibanaI18n.t(key) : null
+    return s && s !== key ? s : fallback
+  }
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 
   // 0031: 'bug' closes the loop — a red Problems column on both boards.

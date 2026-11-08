@@ -55,9 +55,9 @@ describe('S238 focus-core — the FULL Esc peel (view → sheet → focus)', () 
 })
 
 describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
-  it('board.html carries the bumped carriers: board-page v34, focus-core v2 (BEFORE devboard), devboard.css v46, polish-batch v30, quicknotes v51, i18n-en v111, i18n.js v164 (S250 moved the ladder — the strategies tier round; the pin intent is preserved, the versions moved with the carriers)', () => {
+  it('board.html carries the bumped carriers: board-page v35, focus-core v2 (BEFORE devboard), devboard.css v46, polish-batch v30, quicknotes v51, i18n-en v111, i18n.js v164 (S254 moved the ladder — the interaction performance round; the pin intent is preserved, the versions moved with the carriers)', () => {
     const html = readPublic('board.html')
-    expect(html.includes('/js/board-page.js?v=34')).toBe(true)
+    expect(html.includes('/js/board-page.js?v=35')).toBe(true)
     expect(html.includes('/js/focus-core.js?v=2"')).toBe(true)
     expect(html.indexOf('/js/focus-core.js?v=')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
     expect(html.includes('/css/devboard.css?v=46')).toBe(true)
@@ -67,8 +67,8 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     expect(html.includes('/js/i18n.js?v=164')).toBe(true)
     // S244: the shared date control joins (after the jalaali vendor, before devboard.js)
     expect(html.indexOf('/vendor/jalaali.min.js')).toBeGreaterThan(-1)
-    expect(html.indexOf('/vendor/jalaali.min.js')).toBeLessThan(html.indexOf('/js/due-control.js?v=1'))
-    expect(html.indexOf('/js/due-control.js?v=1')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
+    expect(html.indexOf('/vendor/jalaali.min.js')).toBeLessThan(html.indexOf('/js/due-control.js?v=2'))
+    expect(html.indexOf('/js/due-control.js?v=2')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
   })
 
   it('board-page.js: the view modal exists, the card click / Enter / deep link open the VIEW, and the ⋯ Edit still opens the editor', () => {
@@ -97,10 +97,13 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     expect(js.includes('B().openEditor(card.dataset.taskCard')).toBe(false)
     expect(js.includes('B().openEditor(wrap.dataset.taskCard')).toBe(false)
     expect(js.includes('B().openEditor(openTask, { onSaved: reload })')).toBe(false)
-    // the ⋯ menu's Edit STILL opens the editor (the owner's split: menu = edit)
-    expect(js.includes('B().openEditor(tid, { onSaved: reload })')).toBe(true)
-    // the view's own Edit hands off through the same call
-    expect(js.includes('B().openEditor(id, { onSaved: reload })')).toBe(true)
+    // the ⋯ menu's Edit STILL opens the editor (the owner's split: menu = edit).
+    // S254 (FE-1): both Edit doors route through openEditorRepaint — the delegated
+    // menu branch + the view's handoff; the helper wraps openEditor with the
+    // per-column repaint onSaved (create mode keeps the full reload inside it).
+    expect(js.includes('openEditorRepaint(editCardBtn.dataset.dbEditCard)')).toBe(true)
+    expect(js.includes('openEditorRepaint(id)')).toBe(true)
+    expect(js.includes('const openEditorRepaint = (tid) => {')).toBe(true)
     // the sheet's cloned ⋯ menus are re-armed (the data-ok strip)
     expect(js.includes("querySelectorAll('.db-card-menu[data-ok]')")).toBe(true)
     // the controller keeps EXACTLY the four seam-patched fetch sites (the island
@@ -172,10 +175,10 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=105')).toBe(true)
   })
 
-  it('sw.js is at hibana-v460 and the round notes the carrier bumps (S250 moved the ladder — the strategies tier; the pin intent is preserved)', () => {
+  it('sw.js is at hibana-v461 and the round notes the carrier bumps (S254 moved the ladder — the interaction performance round; the pin intent is preserved)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v460"')).toBe(true)
-    expect(sw.includes('// v460 (S250)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v461"')).toBe(true)
+    expect(sw.includes('// v461 (S254)')).toBe(true)
     // the S238 note stays in the history block (the discipline: every prior entry
     // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v452 (S238)')).toBe(true)

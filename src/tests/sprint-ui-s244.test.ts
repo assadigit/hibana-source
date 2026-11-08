@@ -125,7 +125,7 @@ describe('S244 — the shared Gregorian/Jalali date control (D6, due-control.js)
 
   it('the control rides board.html + sprint.html (the two modal-serving pages)', () => {
     for (const page of ['board.html', 'sprint.html']) {
-      expect(readPublic(page)).toMatch(/\/js\/due-control\.js\?v=1/)
+      expect(readPublic(page)).toMatch(/\/js\/due-control\.js\?v=2/)
     }
   })
 })
@@ -411,10 +411,10 @@ describe('S244 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     expect((readPublic('js/due-control.js').match(/\bhibanaFetch\(/g) || []).length).toBe(0)
   })
 
-  it('sw.js is at hibana-v460 with the S250 carrier note (the strategies tier moved the ladder; the S244 pin intent is preserved, the carriers moved with it)', () => {
+  it('sw.js is at hibana-v461 with the S254 carrier note (the strategies tier moved the ladder; the S244 pin intent is preserved, the carriers moved with it)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v460"')).toBe(true)
-    expect(sw.includes('// v460 (S250)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v461"')).toBe(true)
+    expect(sw.includes('// v461 (S254)')).toBe(true)
     expect(sw).toMatch(/due-control\.js v1 \(NEW tag on board\+sprint\)/)
     expect(sw).toMatch(/devboard\.js v36/)
     expect(sw).toMatch(/i18n-fa\.js\?v=104/)

@@ -4163,3 +4163,145 @@ commits + allowlist + probe + release bump).
 
 **Next:** Phase 3 (S254) — Interaction performance (FE-2/3/8/1/10/12/14/15/19/20), the
 island round WITH the full desktop re-pin.
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session S253 (verification pass) — the re-sent prompt, closed clean (2026-11-08)
+
+The owner's S253 prompt arrived a second time AFTER the phase was already executed and
+closed at `68e9ea06` (spec §14 DONE row, released v0.4.1.46). Correct behavior: RE-VERIFY,
+never re-execute — 0067 is live on both D1s and a re-run of destructive-adjacent steps
+against an already-migrated DB is exactly what the D1 discipline forbids. The re-check,
+all green: both repos clean + pushed (local == origin/main); live health probes dev+prod
+both ok / db up / `schema_version 66`; the automated lane fresh (snapshot
+`2026-11-08T03-23-21Z` + the cron's dead-man ping 3 s later); 0067's file, the worklog
+entry, Changelogs row 253, and all five §9 bookmarks present and consistent.
+
+This pass then COMPLETED the §12.4 close-out remainder the first run never recorded:
+the per-version zip (`hibana.0.4.1.46.zip` → the sandbox download folder; wired-HTML
+build, 783 entries, integrity OK, tree restored byte-clean), the healthcheck ping (NOTE:
+the credentials block's `…/hibana` ping URL **404s** — the check slugs are randomized
+per the §4 doctrine; the correct target is the per-check ping URL from the
+healthchecks.io dashboard/management API. Owner: refresh that credentials line), and
+the Telegram notify to the owner-role chat (the app's own routing: role=owner user's
+linked chat).
+
+**Operational finding (pre-existing, NOT Phase 2):** the "Hibana errors" healthcheck
+went red on two `/fail` pings — Nov-6: "D1 query unreachable after 3 attempts" (a
+CF-API blip on the GitHub runner, not an app error), Nov-7: **25 × 5xx on
+`/api/projects/467a7fd6…/devtasks`, all `D1_ERROR: table dev_tasks has no column named
+due_at`** — the S249 deploy-order window (code referencing `due_at` was live ~2 h 15 m
+before 0065's prod apply at `2026-11-06T19:12:42Z`; one client's 15-second burst
+16:56:55–16:57:10). Zero error_log rows since `2026-11-07T04:23Z`, so the daily
+monitor's next success ping clears the red on its own. No action needed; the lesson
+(code-before-migration windows hurt) is what 0067's header already engineers around
+("safe in BOTH deploy orders").
+
+## Session S254 — Phase 3: Interaction performance (2026-11-08)
+
+**The owner's ask, verbatim:** the §13 next-session prompt for Phase 3 (S254) of the
+owner-approved AUDIT-REMEDIATION-SPEC — "make the board/sprint FEEL fast — kill the
+jank, the scroll-block, the boot waterfall, and the full-reload reflex. Markup-stable
+changes only."
+
+**The recovery context (honest):** the session that executed the code round was
+interrupted AFTER pushing all eleven commits (`ad663a0a`→`448d553e`: FE-3, FE-12+15,
+FE-14+15, FE-19, FE-8, FE-2, FE-1+10, FE-20, the cache-bust choreography, the two e2e
+re-pin rounds) but BEFORE the ladder/deploy-probe/close-out. This continuation session
+re-cloned both repos, verified local==origin (nothing lost), found CD had already
+deployed the round to dev+prod (CI green on `448d553e`, live SW = `hibana-v461` on
+both), then ran the whole §12.2 ladder ITSELF (never claim untested), built + ran the
+live feel probe, and closed the phase. No S254 code was re-written; every fix commit
+below is the interrupted session's, re-verified.
+
+**The round that shipped (all markup-stable, zero API/payload change):**
+- **FE-2** (`1976e521`): rAF-batched dragover placement + cached target rects on ALL
+  THREE DnD surfaces (board columns, project progress boxes, sprint sidebar+cats) —
+  one frame does the work with the latest sample, hover-in-place costs zero layout
+  reads, inserts only on real position change; drop/dragend/touchend FLUSH the pending
+  sample first (e2e's synchronous dragover→drop pairs preserved); scroll invalidates
+  the cache.
+- **FE-3** (`ad663a0a`): `touch-action:none` now set ONLY when the 250 ms long-press
+  arm fires — quick swipes from draggable cards scroll the page again.
+- **FE-8** (`6ddb4e15`): parallel boot on /kanban + /sprint.html — `B().load()` rides
+  out immediately, first render awaits data + i18n TOGETHER; no English flash for FA
+  users; error paths await i18n so failures stay translated.
+- **FE-1 + FE-10** (`ba6640e7`): event-delegated card ⋯ menus (zero per-card listeners;
+  document-level branches serve the board lanes AND the sheet's cloned menus) +
+  single-column repaint on task mutations (drop/quick-add/priority-cycle/delete/
+  editor-save) via devboard.js's new state-merge layer (mergeTaskPatch/
+  mergeCreatedTask/applyReorder — the client twins of devboard.ts's write semantics
+  incl. done_at stamping, due-origin rules, PRIO_ORDER sort, quick-add sprint
+  auto-assign); sprint page renders patchTask/createTask/reorder from merged state,
+  NO board GET; chip toggles restore keyboard focus.
+- **FE-12** (`58af9aa9`): GET first-deadline 3 s → 8 s (signal wrapper + one retry
+  kept) + devboard.js `t()` adopts the `s !== k` i18n guard.
+- **FE-14 + FE-15** (`eb2626cd`): dead `TITLE_CLAMP` removed; chip-render.js +
+  due-control.js adopt the i18n guard (raw keys can no longer leak on dict-load
+  failure).
+- **FE-19** (`aed75c7b`): `ensureLib` self-injects IMMEDIATELY on a head script's
+  error event (capture-phase resource listener) instead of waiting out the 1.2 s poll;
+  9 s ceiling + no-loop flag kept; both board + sprint twins.
+- **FE-20** (`f7e4e7e0`): check-cache-bust.mjs gains the injector-literal cross-check
+  — every public/js injector literal's `?v=` must match the HTML-referenced `?v=` of
+  the same file, checked ALWAYS (not just modified files); it PROVED itself by
+  catching the devboard v38/chip-render v14 literals sitting ahead of this round's
+  HTML bumps.
+- **Cache-bust choreography** (`e85d1a2a`): touch-drag.js v2 (23 pages), devboard.js
+  v38 (3 pages + 4 injector literals incl. project-page's lazy belt), board-page.js
+  v35, sprint-page.js v29, project-page.js v86, chip-render.js v14, due-control.js
+  v2; **SW v460→v461** + the one SHELL re-fetch; cache-bust + precache (+12 KB
+  headroom) + bundle checks green.
+- **e2e re-pins** (`6fb89863`, `448d553e`): sw v461 pins across the 7 history-pinned
+  suites, the injector-literal pins (v38/v14/v2/v35), the s238 Edit-door pin
+  re-pointed at `openEditorRepaint`, and the s206 sprint quick-add no-store witness
+  now counts ONE call (the merge layer renders the sidebar from state; the old second
+  board GET reload is retired).
+
+**The honest ladder record (this session, fresh sandbox):** `npm run verify` in
+stages — tsc strict 0 errors, eslint 0 warnings, **vitest 990/990**, prod build,
+portability, fn-shape, import-boundaries all PASS; cache-bust PASS (with the FE-20
+cross-check), i18n **1707/1707**, precache PASS (+12 KB headroom), bundle PASS;
+`node --check` on all 7 touched JS. e2e **510/510** as four sequential quarter-shards
+(130+127+129+124, each on its own port+DB — the sandbox's process reaper kills
+background servers between tool calls): **one flake, honestly recorded** —
+`s182-todo-panel S183-5` (the fade-edge/scrollbar geometry test, a surface this round
+never touched) failed 2 of 4 full-shard runs locally, passed isolated 3/3, passed the
+final full run, and CI's own 2-shard e2e is green on this exact commit. Verdict:
+environment-sensitive scrollbar assertion under load, not a regression — same class
+the e2e history already records for that suite.
+
+**The live feel probe** (`scripts/live-s254-probe.mjs`, `77456857` — 40 checks):
+carriers (SW v461 + every wired /dist asset the 3 pages reference resolves 200 +
+the FE-19 belt's wired devboard literal inside the deployed board-page bundle +
+due-control.js?v=2), then the browser feel test through the REAL login page (a
+`__Host-` session cookie cannot be injected — addCookies rejects it; the faithful
+path is the real login): boot = ONE board GET; FE-3 touch-action at rest = auto;
+drag idea→planned (dragover prevented, per-column repaint, ZERO refetch); drag
+planned→done (done_at stamped server-side — polled past the optimistic repaint, ZERO
+refetch); sprint quick-add = ONE POST + ZERO board GET + the task renders from merged
+state; zero page errors. **Local rehearsal 38/38** (scratch server + seeded user —
+three honest iterations: the body-consumed-twice api() bug, the __Host- cookie
+lesson, and the fixed-sleep race), **dev 40/40** (seeded probe user
+`probe-s254-dev@hibana.local`, purged after: probe_users 0, orphan_archives 0 — the
+DB-3 sweep rides the purger), **prod 40/40** (the test account; the probe project
+soft-deleted — trash, the 7-day cron purges). Probe lessons recorded: deployed trees
+serve WIRED HTML (content-hashed /dist/ URLs; the `?v=` is consumed by the hash —
+only the un-hashed due-control carries a visible `?v=`), and the deploy-time wiring
+rewrites the injector literals INSIDE the dist bundles too (the belt check proves
+that survived).
+
+**Live:** CD deployed dev+prod on push (SW v461 live on both, health ok, schema 66);
+prod error_log **0 rows** in the session window. The tidy-root PR (#18, the AGENTS.md
+§13 procedure) merged mid-session — pure file moves, rebased cleanly around.
+
+**Desktop (§12.3):** the full re-pin — PIN_REF/PIN_PACKAGE_VERSION to the S254 web
+SHA + v0.4.1.47, anchor re-records per sync-island's loud failures, desktop.yml
+WEB_REF + WEB_VERSION together, ALL 14 probes, push → autorelease v0.1.45 → verify.
+
+**Version:** 0.4.1.46 → **0.4.1.47**. Commits: `ad663a0a…77456857` (the interrupted
+session's eleven + this session's probe).
+
+**Next:** Phase 4 (S255) — Payload & network diet (BE-3, BE-25, FE-4, FE-7, FE-16),
+the island round WITH the full desktop re-pin.

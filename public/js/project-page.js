@@ -3322,7 +3322,7 @@
         const ensureBoardLib = (cb) => {
           if (window.HibanaBoard) return cb()
           const s = document.createElement('script')
-          s.src = '/js/devboard.js?v=38'
+          s.src = '/js/devboard.js?v=39'
           s.onload = () => cb()
           s.onerror = () => window.hibana?.toast(_t('sparks.saveFailed', "Couldn't load"), 'err')
           document.head.appendChild(s)
@@ -3410,26 +3410,42 @@
           const seq = ++pdRepaintSeq
           let data
           try {
-            const res = await fetch('/api/projects/' + id)
+            // S255 (FE-4 — the audit's 13-query repaint): the touched columns
+            // re-render from the LEAN BOARD payload, not the full project detail.
+            // The old fetch pulled /api/projects/:id — hurdles, links, ALL
+            // screenshots, history, notes, canvas backlinks, backlog… — to repaint
+            // ≤2 kanban columns. The board payload carries every field the repaint
+            // actually reads: tasks (same SELECT t.* + the same effective-deadline
+            // triple + shot_count), task_tags (the same flat join), categories (the
+            // same enabled-∪-referenced set), sprints (names), task_deps (the same
+            // edge join). Field parity is by construction — both payloads fold
+            // through the SAME server helpers (boardTaskRows / taskTagsForProject /
+            // taskDepsForProject).
+            const res = await fetch('/api/projects/' + id + '/devboard?lean=1')
             if (!res.ok) return
             data = await res.json()
           } catch { return } // network hiccup — the optimistic DOM stands
           if (seq !== pdRepaintSeq) return
-          const all = (data.project ? data.project.devTasks : data.devTasks) || []
-          const tagRows = (data.project ? data.project.devTaskTags : data.devTaskTags) || []
+          const all = data.tasks || []
+          const tagRows = data.task_tags || []
           // S152: the payload now carries the project's category rows (enabled ∪
           // referenced) — the chip lookups + the picker read from here.
-          const catRows = (data.project ? data.project.categories : data.categories) || []
+          const catRows = data.categories || []
           if (catRows.length) pdCats = catRows
           const tagsBy = {}
           for (const r of tagRows) (tagsBy[r.task_id] = tagsBy[r.task_id] || []).push({ name: r.name, color: r.color })
-          // S209 (kanban 1:1 parity): pins + sprint names ride the same payload.
-          const { pins, sprintName } = pdDetailMaps(data)
+          // S209 (kanban 1:1 parity): pins + sprint names ride the same payload —
+          // the board rows' shot_count IS the pin count (COUNT(screenshots WHERE
+          // task_id = t.id), the server twin of the detail fold below).
+          const pins = {}
+          for (const t of all) pins[t.id] = Number(t.shot_count) || 0
+          const sprintName = {}
+          for (const sp of (data.sprints || [])) sprintName[sp.id] = sp.name
           // S246: the repaint's fresh payload re-folds the dep badges — the edge
           // pool graduates to fetched truth here (a raced dep change elsewhere
           // lands with the same repaint), exactly like the status/sprint sync
           // below.
-          pdDepTruth = (data.project ? data.project.taskDeps : data.taskDeps) || []
+          pdDepTruth = data.task_deps || []
           // The filter bar's tier counts ride pdTaskTruth — reconcile (track the
           // newcomers, forget the deletes). S243b: the repaint's fresh payload also
           // re-syncs each row's status + sprint assignment — the overview folds read

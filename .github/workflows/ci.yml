@@ -87,6 +87,12 @@ jobs:
       - name: Cache-bust check
         run: node scripts/check-cache-bust.mjs
 
+      # S256 (FE-5): the per-page CSS bundles (board-bundle/projects-bundle — the
+      # four Projects-section pages' one <link>) are COMMITTED generated files; this
+      # gate fails when a sheet changed without regenerating them.
+      - name: CSS bundle freshness + wiring check
+        run: node scripts/check-css-bundles.mjs
+
       - name: i18n parity check
         run: node scripts/check-i18n-parity.mjs
 

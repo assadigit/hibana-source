@@ -488,10 +488,10 @@ describe('S246 — the desktop seam tripwires + the ladder (the Phase 9 re-pin i
     expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(4)
   })
 
-  it('sw.js is at hibana-v462 with the S255 carrier note (the payload diet moved the ladder; the S246 carriers are noted in the v460 line)', () => {
+  it('sw.js is at hibana-v463 with the S256 carrier note (the CSS/asset diet moved the ladder; the S246 carriers are noted in the v460 line)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v462"')).toBe(true)
-    expect(sw.includes('// v462 (S255)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v463"')).toBe(true)
+    expect(sw.includes('// v463 (S256)')).toBe(true)
     expect(sw).toMatch(/devboard\.js v37/)
     expect(sw).toMatch(/i18n-fa\.js\?v=105/)
   })

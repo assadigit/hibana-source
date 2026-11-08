@@ -76,7 +76,9 @@ for (const [logical, hashed] of Object.entries(manifest)) {
 }
 
 // 3. no orphan files in dist/
-const distFiles = readdirSync(DIST_DIR).filter((f) => f !== 'manifest.json')
+// (S256: bundles.json is a real runtime artifact — the SW's per-page-bundle map —
+// not a manifest entry; allowlisted exactly like manifest.json itself.)
+const distFiles = readdirSync(DIST_DIR).filter((f) => f !== 'manifest.json' && f !== 'bundles.json')
 const manifestFiles = new Set(Object.values(manifest).filter((v) => v.startsWith('dist/')).map((v) => v.slice('dist/'.length)))
 for (const f of distFiles) {
   if (!manifestFiles.has(f)) problems.push(`dist/${f} exists on disk but is not in the manifest (orphan — would be served immutable)`)

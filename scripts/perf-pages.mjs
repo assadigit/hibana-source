@@ -34,6 +34,12 @@ const PAGES = [
   ['calendar', '/calendar.html'],
   ['whiteboard', '/whiteboard.html'],
   ['settings', '/settings.html'],
+  // S256 (FE-5, the CSS/asset-diet round): the four Projects-section surfaces' own
+  // rows — the kanban + sprint pages joined the measured set so the per-page CSS
+  // bundle change (19-20 <link>s → one bundle) has an honest before/after FCP/LCP
+  // + stylesheet-request-count/bytes lens. projects/project-detail were already here.
+  ['kanban', '/kanban?project=__DOING__'],
+  ['sprint', '/sprint.html?project=__DOING__'],
 ]
 
 const collectJs = `(() => {
@@ -50,6 +56,11 @@ const collectJs = `(() => {
     dcl: Math.round(nav.domContentLoadedEventEnd),
     load: Math.round(nav.loadEventEnd),
     fcp: Math.round((paints.find(p => p.name === 'first-contentful-paint') || { startTime: -1 }).startTime),
+    lcp: (() => { const direct = performance.getEntriesByType('largest-contentful-paint').slice(-1)[0]; const viaObs = window.__lcp || 0; const v = Math.max(direct ? direct.startTime : 0, viaObs); return v > 0 ? Math.round(v) : -1 })(),
+    // S256: the stylesheet lens — request count + transferred bytes of CSS links
+    // (initiatorType 'link' + a .css URL; the FE-5 before/after delta lands here).
+    cssCount: res.filter((r) => (r.initiatorType === 'link' || r.initiatorType === 'css') && /\.css(?:[?]|$)/.test(r.name)).length,
+    cssKB: Math.round(res.filter((r) => (r.initiatorType === 'link' || r.initiatorType === 'css') && /\.css(?:[?]|$)/.test(r.name)).reduce((n, r) => n + (r.transferSize || r.encodedBodySize || 0), 0) / 1024),
     transfer: res.reduce((n, r) => n + (r.transferSize || r.encodedBodySize || 0), 0) + (nav.transferSize || nav.encodedBodySize || 0),
     resources: res.length + 1,
     apiCount: api.length,
@@ -131,6 +142,15 @@ async function run() {
         await ctx.addInitScript(([l]) => {
           localStorage.setItem('hibana-lang', l)
           localStorage.setItem('hibana-tour-done', '1')
+          // S256: LCP needs a buffered observer registered before page scripts —
+          // getEntriesByType('largest-contentful-paint') returns [] in headless shells.
+          window.__lcp = 0
+          try {
+            new PerformanceObserver((list) => {
+              const es = list.getEntries()
+              if (es.length) window.__lcp = Math.round(es[es.length - 1].startTime)
+            }).observe({ type: 'largest-contentful-paint', buffered: true })
+          } catch { /* older engines — LCP reports -1 */ }
         }, [lang])
         // login inside this fresh context (cookie lands in the shared jar)
         await ctx.request.post(`${BASE}/api/auth/login`, {
@@ -173,9 +193,9 @@ async function run() {
   console.log('\n\n═'.repeat(96))
   console.log('PAGE LOAD BASELINE (median of cycles) — ms | KB transferred | resources | api calls | api ms | DOM nodes')
   console.log('═'.repeat(96))
-  console.log(`${'page'.padEnd(15)} ${'lang'.padEnd(4)} ${'TTFB'.padStart(5)} ${'DCL'.padStart(6)} ${'LOAD'.padStart(6)} ${'FCP'.padStart(6)} ${'KB'.padStart(7)} ${'res'.padStart(4)} ${'api'.padStart(4)} ${'apiMs'.padStart(6)} ${'dom'.padStart(6)} ${'err'.padStart(4)}`)
+  console.log(`${'page'.padEnd(15)} ${'lang'.padEnd(4)} ${'TTFB'.padStart(5)} ${'DCL'.padStart(6)} ${'LOAD'.padStart(6)} ${'FCP'.padStart(6)} ${'LCP'.padStart(6)} ${'cssN'.padStart(5)} ${'cssKB'.padStart(6)} ${'KB'.padStart(7)} ${'res'.padStart(4)} ${'api'.padStart(4)} ${'apiMs'.padStart(6)} ${'dom'.padStart(6)} ${'err'.padStart(4)}`)
   for (const lang of ['en', 'fa']) {
-    for (const [name] of PAGES) {
+    for (const [name] of pages) {
       for (const kind of ['cold', 'warm']) {
         const rows = results.filter((r) => r.lang === lang && r.page === name && r.kind === kind)
         const line = [
@@ -183,6 +203,9 @@ async function run() {
           median(rows.map((r) => r.dcl)),
           median(rows.map((r) => r.load)),
           median(rows.map((r) => r.fcp)),
+          median(rows.map((r) => r.lcp)),
+          median(rows.map((r) => r.cssCount)),
+          median(rows.map((r) => r.cssKB)),
           Math.round(median(rows.map((r) => r.transfer)) / 1024),
           median(rows.map((r) => r.resources)),
           median(rows.map((r) => r.apiCount)),

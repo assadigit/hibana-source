@@ -25,9 +25,26 @@ import { join } from 'node:path'
 const ROOT = process.cwd()
 const SW_PATH = join(ROOT, 'public', 'sw.js')
 const MANIFEST_PATH = join(ROOT, 'public', 'dist', 'manifest.json')
+const BUNDLES_PATH = join(ROOT, 'public', 'dist', 'bundles.json')
 const PUBLIC = join(ROOT, 'public')
 
-// Budget: 2,340 KB raw. History: 2,300 KB was pinned at S200 (measured 2,179 KB
+// S256 (FE-5): the per-page CSS bundles are excluded from the measured install —
+// mirroring the SW's install filter EXACTLY (sw.js synthesizes them from the
+// precached sheets; they are never network-precached). Their bytes are the union
+// of the individually-precached sheets, which this gate still counts once each —
+// counting the bundles too would double-bill ~880 KB of CSS the install never
+// downloads. Absent bundles.json (a dev build) the exclusion is simply empty.
+let BUNDLE_KEYS = new Set()
+if (existsSync(BUNDLES_PATH)) {
+  try {
+    BUNDLE_KEYS = new Set(Object.keys(JSON.parse(readFileSync(BUNDLES_PATH, 'utf8'))))
+  } catch {
+    console.error('FAIL: public/dist/bundles.json is not valid JSON — re-run the build.')
+    process.exit(1)
+  }
+}
+
+// Budget: 2,350 KB raw. History: 2,300 KB was pinned at S200 (measured 2,179 KB
 // at S198 + ~5% headroom; the post-WebP diet measured 2,138 KB). Five weeks of
 // releases — S201-S238 plus the whole Sprint/Deadline/Dependency feature stack
 // (S240-S247b: due-control.js v1 + emoji-picker.js v4 join the SHELL precache,
@@ -40,11 +57,16 @@ const PUBLIC = join(ROOT, 'public')
 // the S250 strategies round: the Strategy → Sprint → Task tier measured 2,341 KB
 // — 1 KB over — on its first CI run (sprint-page.js's section + dialogs +~6 KB,
 // devboard.js's wrappers +~2 KB, the st.* dictionaries +~3 KB, devboard.css
-// +~3 KB — every entry reviewed, the growth is the feature). Same doctrine:
-// ratchet DOWN on deliberate shrinks (e.g. PERF-8's Login.jpg → WebP); never
-// raise it without a written
-// reason in the commit message.
-const BUDGET_BYTES = 2_360 * 1024
+// +~3 KB — every entry reviewed, the growth is the feature). Lowered to 2,350 KB
+// (−10 KB, measured 2,342 KB) in the S256 CSS/asset-diet round (audit
+// remediation Phase 5): FE-5's four Projects-section pages swap their 19-20
+// <link>s for the per-page bundles (−4 KB of HTML) and FE-13's twin dedup
+// trims the island JS — while the bundles themselves are deliberately OUT of
+// the measured install (the SW synthesizes them from the precached sheets;
+// counting them would double-bill ~880 KB of CSS the install never downloads —
+// see the BUNDLE_KEYS exclusion above). Same doctrine: ratchet DOWN on
+// deliberate shrinks; never raise without a written reason in the commit.
+const BUDGET_BYTES = 2_350 * 1024
 
 if (!existsSync(SW_PATH)) {
   console.error('FAIL: public/sw.js not found.')
@@ -88,8 +110,10 @@ const manifestEntries = []
 for (const [logical, url] of Object.entries(manifest)) {
   // Mirror the SW's install logic EXACTLY (public/sw.js): it precaches manifest
   // entries whose value starts with 'dist/' — vendor/* values (public/vendor,
-  // runtime SWR) and i18n-fa.js (FA-only lazy, S80) are deliberately OUT.
-  if (!url.startsWith('dist/') || logical === 'i18n-fa.js') continue
+  // runtime SWR), i18n-fa.js (FA-only lazy, S80) and the S256 per-page CSS bundles
+  // (install-synthesized from the sheets below, never network-precached) are
+  // deliberately OUT.
+  if (!url.startsWith('dist/') || logical === 'i18n-fa.js' || BUNDLE_KEYS.has(logical)) continue
   const rel = url.slice('dist/'.length)
   const p = join(PUBLIC, 'dist', rel)
   if (!existsSync(p)) {

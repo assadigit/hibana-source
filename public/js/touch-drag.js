@@ -39,10 +39,19 @@
     const dt = new DataTransfer()
     dt.setData('text/plain', src.dataset.projectId || src.dataset.hurdleId || '')
     s = { src, dt, sx: e.clientX, sy: e.clientY, timer: null, armed: false }
-    src.style.touchAction = 'none' // the long-press-then-drag must not scroll the page
+    // S254 (FE-3): touch-action:none moves INTO the 250ms arm callback. Setting it
+    // at pointerdown blocked page scrolling for the WHOLE gesture — a quick swipe
+    // that started on any draggable card could never scroll (the mobile-scroll bug:
+    // the compositor re-reads touch-action regions at the first slop-crossing move,
+    // and the pointerdown-time set always landed before it). Now a quick swipe pans
+    // the page (the arm never fires — the >12px move cancels it); only a real
+    // long-press arms the drag, and the arm-time set still lands before the finger
+    // moves, so the drag keeps the pan suppressed (verified against Chromium's
+    // HitTestTouchEvent: the region is read at touchstart or FIRST TOUCH MOVE).
     s.timer = setTimeout(() => {
       if (!s || s.armed) return
       s.armed = true
+      s.src.style.touchAction = 'none' // the long-press-then-drag must not scroll the page
       blockClickUntil = Date.now() + BLOCK_CLICK_MS
       fire('dragstart', s.src, s.sx, s.sy)
     }, ARM_MS)

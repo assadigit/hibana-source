@@ -528,7 +528,7 @@ users. Current counts live in Changelogs §1 — keep them current.
 | Phase | Session | Status | Web commit | Desktop release | Notes |
 |-------|---------|--------|-----------|-----------------|-------|
 | 0 — safety baseline + spec | S251 | **DONE** 2026-11-07 | (this commit) | — | dumps both D1s + restore verified; automated lane fresh; data checks clean; 1 orphan archive found (→ Phase 2) |
-| 1 — correctness & safety pack | S252 | **DONE** 2026-11-08 | 5a303426 (v0.4.1.45 release commit follows) | v0.1.41 (DT-1 only) | BE-6/7/10/9/2 fixed + 7 regression tests; 976/976; e2e 510/510 (one pre-existing overnight flake de-flaked, proven on 8118e608); live-probed dev+prod; no schema/payload/island change |
+| 1 — correctness & safety pack | S252 | **DONE** 2026-11-08 | da005ee5→aeb1e625 (released v0.4.1.45 @ 6984429c; live) | v0.1.41 (DT-1 only) | BE-6/7/10/9/2 fixed + 7 regression tests; 976/976; e2e 510/510 (one pre-existing overnight flake de-flaked, proven on 8118e608); live-probed dev+prod 17/17 each (test account on prod, seeded+purged probe user on dev); no schema/payload/island change |
 | 2 — database health (0067) | S253 | PENDING — **NEXT** | | | DB-1/2/3/4 + BE-1/5b; backup ritual first |
 | 3 — interaction performance | S254 | PENDING | | | FE-2/3/8/1/10/12/14/15/19/20; re-pin |
 | 4 — payload & network diet | S255 | PENDING | | | BE-3/25 + FE-4/7/16; re-pin |

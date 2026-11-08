@@ -13,83 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S253 — Phase 2: Database health, migration 0067 (2026-11-08)
-
-**The owner's ask, verbatim:** the §13 next-session prompt for Phase 2 (S253) of the
-owner-approved AUDIT-REMEDIATION-SPEC — "Step 0 — the backup ritual (§12.1), NO
-exceptions … If any step cannot run, STOP and report."
-
-**Step 0 — the backup ritual, all green:** fresh dumps of BOTH D1s
-(`/home/z/hibana-backups/pre-0067-{dev,prod}-20261108.sql` + manifests), restore-verified
-(PRAGMA foreign_keys=OFF, integrity_check ok, row counts recorded), `bookmark:prod` +
-`bookmark:dev` (§9 rows, schema 65), the automated lane fresh (hibana-safe latest
-snapshot 5.23 h old < 7 h). The belt-first probes rode the restore verification: ZERO
-sprint/strategy/tag case-twins, ZERO multi-drafts on either DB — nothing to park, so
-0067 carries indexes only. Found on the way: 1 orphan archive row in prod (the spec's
-known one), 2 in dev (the s252 live probe's own residue — the probe-user purge cascaded
-the project away but 0046's missing FK let the archives survive; DB-3's exact bug class).
-
-**Migration 0067** (`3572a9ca`, additive-only, IF NOT EXISTS-guarded): the four audit
-indexes — idx_project_archives_sprint (DB-1: the only EQP-verified full SCAN, now
-`SEARCH … USING INDEX`, proven locally before touching remotes), idx_sprints_one_draft
-(partial unique), idx_sprints_project_name + idx_strategies_project_name (expression
-uniques on lower(trim(name))). Applied dev first (schema 65→66, row-count parity
-byte-identical, four indexes present), then prod with a FRESH bookmark:prod first
-(00002043…). Zero row loss on either side.
-
-**The code round, one commit per finding:**
-- **BE-8/DB-2 catch-and-map** (`00daad15`): `uniqueViolationOn(err, …needles)` in
-  devboard-helpers + try/catch at all SIX sprint/strategy create+rename writes — the
-  0067 belts map to the pre-checks' own 409s (duplicate / draft_exists / with the
-  winner's id; the with-dates INSERT and PATCH-reopen arms also catch the 0065
-  one-active belt → sprint_active_exists, same class, same sites). Never a raw 500.
-- **DB-3** (`6613963d`): `DELETE FROM project_archives` added to all THREE purge sites
-  (projects hard-delete, admin/cron 7-day purge, settings empty-trash — each BEFORE the
-  projects DELETE, subquery-shaped). Purge-parity pins ×3 (one per site, row-count
-  asserted). The live orphan sweep post-bookmark: prod 1 row, dev 2 rows, counts in §9
-  (bookmarks 00002044…/0000119b…). **This is the plan's only destructive-semantics
-  change** — flagged in the Changelogs row.
-- **DB-4** (`5b553409`): DEBT.md entry for the 0060 folder_id FK loss (latent, app-level
-  cleanup covers it; removal = a future owner-approved rebuild).
-- **BE-1 + BE-5b** (`07b56233`): setTaskTags is BATCHED — one NOCASE-IN find
-  (oldest-row-wins), one palette read (tagColorCounts/leastUsedPaletteColor extracted,
-  sequential per-name color pick preserved), one chunked multi-row
-  INSERT…ON CONFLICT…RETURNING create, executeIn-chunked link sync; a 12-tag save drops
-  from ~30 sequential round trips to a fixed ~6-9. Response shape byte-identical.
-  Archives GET capped LIMIT 200 + additive `?offset=` (the quicknotes grammar; absence
-  = page 0 — the island + desktop mirror are served exactly as before).
-
-**The honest test record:** 990/990 vitest (from 976: +11 s253 pins, +3 purge-parity,
-plus one RE-PIN — the S240 "legacy case-twins stay readable" pin seeded a same-project
-twin pair directly, a state 0067 makes structurally impossible BY DESIGN; the pin now
-asserts the DB-layer refusal + the write-gate 409 + clean reads, and the s247
-lock-step matrix citation follows it). fn-shape needed the per-round allowlist re-pin
-(five devboard handlers moved/grown + the new setTaskTags@72 pin — the S252 doctrine).
-The e2e round: the fresh sandbox lacked the Playwright browser (255 instant failures —
-`npx playwright install chromium` fixed it, not a code issue), then 510/510 green
-(shard 1: 257/257 in one run; shard 2: 249 ✓ when the tool timeout killed the process
-at test 249/253, the remaining viewport file re-run 15/15 — every one of the 510
-verified, zero failures). verify exit 0, cache-bust PASS (backend-only), i18n
-1707/1707, precache +19 KB headroom, bundle PASS.
-
-**Live:** CD deployed dev+prod on `c03d6dc9` (CI green). `scripts/live-s253-probe.mjs`
-(24 checks — schema 66 in the health probe, the belt 409s create+rename both tiers,
-BE-1 shape + NOCASE reuse, BE-5b paging, clean deletes): local rehearsal 24/24, dev
-24/24 (seeded probe user, purged after — probe users 0, dev orphans 0, baseline counts
-restored), prod 24/24 (the test account). Prod error_log: ZERO rows in the session
-window. The dev probe-user purge now sweeps the archives the cascade can't reach (the
-S252 seeder's gap — its own probe residue was today's dev orphans).
-
-**Desktop: ZERO changes** (spec §5 step 8) — web-D1 indexes are invisible to the Go
-mirror, no island byte changed, the archives default payload is unchanged (the cap
-sits above prod's 149-row max; ?offset= is additive opt-in). No re-pin, no release.
-
-**Version:** 0.4.1.45 → **0.4.1.46**. Commits: `3572a9ca…40eb971e` (0067 + five fix
-commits + allowlist + probe + release bump).
-
-**Next:** Phase 3 (S254) — Interaction performance (FE-2/3/8/1/10/12/14/15/19/20), the
-island round WITH the full desktop re-pin.
-
 ## Session S253 (verification pass) — the re-sent prompt, closed clean (2026-11-08)
 
 The owner's S253 prompt arrived a second time AFTER the phase was already executed and
@@ -336,3 +259,119 @@ client-side in the mirror is a later optional round, noted).
 **Next:** Phase 5 (S256) — CSS/asset diet (FE-5 per-page bundles, FE-13 the
 byte-equal twins), the heaviest re-pin (HTML link sets) — the ratchet only goes
 DOWN after it.
+
+## Session S256 — Phase 5: CSS/asset diet (2026-11-09)
+
+**The owner's ask, verbatim:** the §13 next-session prompt for Phase 5 (S256) of
+the owner-approved AUDIT-REMEDIATION-SPEC — "cut ~950 KB/page of render-blocking,
+mostly-irrelevant CSS; buy precache headroom back… the ratchet only goes DOWN
+after this." Executed EXACTLY per §8; no red line was hit.
+
+**The round that shipped (zero API/schema/payload change; markup-stable):**
+- **FE-5** (`836cc18e`): the four Projects-section pages' heads collapse 19-20
+  individual `<link>`s into ONE per-page bundle — board.html + sprint.html →
+  `/css/board-bundle.css?v=1`, projects.html + project.html →
+  `/css/projects-bundle.css?v=1` (projects' own order keeps magic-wand AFTER
+  rtl, preserved verbatim). The bundles are GENERATED by `scripts/build.mjs` on
+  EVERY build (deterministic concatenation in the EXACT current `<link>` order —
+  the spec's "safe transform"; rtl.css LAST inside board-bundle, the desktop
+  island contract), committed as tracked files, then minified + hashed into
+  `/dist/` like every entry (436.7 KB + 442.1 KB). The SW deliberately does NOT
+  network-precache them — their bytes are the union of the individually
+  precached sheets (every other page still links the sheets; the offline union
+  is the install floor — precaching the bundles too would double-bill ~880 KB
+  per install). Instead the SW SYNTHESIZES each bundle at install time from the
+  already-cached parts (the new `dist/bundles.json` carries the ordered part
+  lists), so a fresh install that goes offline before ever visiting the Projects
+  section still renders all four pages styled — **offline shell parity at zero
+  extra install bytes, PROVEN on the real wired tree by the new
+  `scripts/probe-sw-synthesis.mjs` (all four pages offline: bundleRules
+  4048/4098, zero page errors; the honest debugging on the way: the
+  query-carrying navigation only enters the offline cache on its second,
+  controlled load — the PRE-EXISTING SW contract, now documented in the probe).**
+- **The FE-5 gates**: NEW `scripts/check-css-bundles.mjs` (committed-bundle
+  freshness vs deterministic regeneration + each bundle page links its bundle
+  exactly once + no individual sheet links remain + board-bundle's LAST part is
+  rtl.css + every part keeps a carrier page OUTSIDE the bundle set — the SW
+  synthesis reads the precached sheets) wired into CI + both deploy chains;
+  `check-dist-wiring` allowlists `dist/bundles.json`; CI's post-wire
+  `git diff --exit-code -- public/` doubles as the stale-bundle tripwire (the
+  build regenerates them). **precache re-baselined DOWN 2,360→2,350 KB**
+  (measured 2,342; the honest correction of the spec's "expect a large drop":
+  the offline CSS union — 533 KB the sheets already cost once — is the floor;
+  bundling adds REQUESTS-saved, not install bytes; the drop = the four pages'
+  HTML shrink + FE-13's dedup). **bundle-size re-baselined +64% with reason**
+  (the two bundles are new dist entries by design; the re-baseline also revives
+  the per-file LOGICAL-key guard — dead since S200 because the old baseline
+  stored hashed keys). sw v462→v463 (the synthesis is sw.js LOGIC — the version
+  bump is required by the discipline, not just the carriers).
+- **FE-13 partial** (`2912580c`): the byte-equal twins consolidate into
+  chip-render.js through the EXISTING `window.HibanaChips ? … : fallback`
+  gating — project-page.js loses pdEsc + pdDig + PD_PRIO_LABEL + PD_G_MONTHS +
+  pdMetaLine + 2 inner esc copies (its meta now calls the same
+  `HibanaChips.metaDateHtml` board-page.js:272 always used — **the s110
+  meta-parity pin holds by CONSTRUCTION**), board-page.js loses escS,
+  due-control.js loses its esc. devboard.js stays the fallback root UNTOUCHED —
+  its esc/G_MONTHS serve sprint.html (no chip-render tag there) and its
+  faDig/prioLabel are NOT byte-equal twins (lang-gated faDig; SHORT priority
+  labels — different contracts, deliberately left alone). Carriers:
+  board-page v37, due-control v3, project-page v88.
+
+**The honest measurement record (spec §8 step 3):**
+- `perf-pages.mjs` grew the kanban + sprint rows + an LCP observer + the
+  cssN/cssKB lens (BEFORE/AFTER on the same harness, medians of 3, cold):
+  **cssN 22-23 → 4 stylesheet requests per page (−18/−19, the render-blocking
+  chain); cssKB 298-301 → 275-277 KB transferred (−8%, gzip amortizes across
+  the joined sheets); FCP consistently down (kanban EN 192→164ms, projects EN
+  240→164ms); LCP noisy (±60-80ms between runs — recorded, not cherry-picked).**
+- Lighthouse (`lighthouserc.json` + mobile, before/after): desktop login
+  100→100 / login?next 96→94; mobile login 98/89/91→90/98/98 and the
+  SW-active login?next variant 65/60/66→61/63/62 — the SAME band (login +
+  dashboard are untouched pages; these runs are the CI floors, the
+  Projects-page deltas live in the perf harness above). All floors hold.
+
+**The honest ladder record:** `npm run verify` exit 0 (tsc strict 0, eslint 0
+warnings, **vitest 998/998** — 10 carrier pins re-pinned across
+s237/s238/s242/s243/s244/s245/s246/s247: sw v463 everywhere, devboard.css?v=46
+carriers 23→19 pages (the four ride the bundles), board-page v37 + due-control
+v3 tokens; the s247 acceptance-matrix citation lesson — s244's test TITLE is
+cited verbatim, titles stay, the version moves inside), prod build,
+portability, fn-shape, import-boundaries; cache-bust PASS (3 modified files);
+i18n 1707/1707; precache PASS (+8 KB headroom at the new 2,350 budget);
+bundle-size PASS at the re-baselined numbers; check-css-bundles PASS (negative
+tested: a hand-drifted bundle fails it, the build heals it); **e2e 510/510**
+(four sequential quarter-shards 130+127+129+124, zero flakes — the full FA/RTL
++ EN/LTR, light + dark, desktop + 390px matrix inside the specs).
+
+**Live:** CD deployed dev+prod on `2912580c` (CI 644 green incl. the new
+gate + LHCI floors). `scripts/live-s256-probe.mjs` — **local rehearsal 66/66**
+(the full 2 langs × 2 themes × 4 pages visual matrix on the wired artifact:
+bundle parses 4048/4098 rules, light/dark tokens paint per page (project.html's
+own #F5F4F1 paper pinned separately), dir=rtl on FA, lanes/columns render,
+zero page errors), **dev 16/16 + prod 16/16 carriers live** (both bundles
+serving 200 immutable, the live order proof — every constituent sheet present
++ rtl at board-bundle's tail + magic-wand after rtl in projects-bundle —
+health ok schema 66). **The honest credential gap:** this session's Cloudflare
+token belongs to a DIFFERENT account than the one hosting the Hibana D1s (the
+devseed's `wrangler d1 execute` 404s; the CD deploys ride the repo secrets),
+and the block carries no prod test account — so the live AUTHED visual matrix
+could not run on dev/prod this round; it rode the local 66/66 on the
+byte-identical deployed artifact + the 510/510 e2e instead. No probe user was
+created, so none needed purging.
+
+**Desktop (§12.3):** the heaviest re-pin, executed after this close (see the
+desktop repo's own record): the island manifest's CSS set collapses 19 sheets →
+`css/board-bundle.css` (the whole point — the island mirrors board.html's one
+link), verifyDist's expectedLinks + rtl-last checks re-recorded for the bundle
+world, the probe needles re-pinned (board-page v37, due-control v3, the sheet
+fetches → the bundle fetch), DT-5 closed (the stale KNOWN-REMAINS items 1/3/4
+pruned — __hibanaMe lives in the shim since the login round, MediaMiddleware
+shipped v0.1.15, KanbanIndexMiddleware shipped v0.1.2 — + the v104/v105
+comment drift fixed), desktop.yml WEB_REF+WEB_VERSION twins moved together.
+
+**Version:** 0.4.1.48 → **0.4.1.49**. Commits: `836cc18e`, `2912580c`,
+`49bd13fc` + this close.
+
+**Next:** Phase 6 (S257) — Backend modularization (the devboard split,
+BE-11/13/14/15/16/17, FN-ALLOWLIST re-pins) — zero route-path changes, desktop
+no-op by design.

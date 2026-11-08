@@ -172,6 +172,10 @@ const tagBodySchema = z.object({ name: z.string().trim().min(1).max(60), color: 
 // SAME project (cross-project is rejected in the handler via ownedTask on both ends —
 // a foreign id is a 400, never a 500). Self-edges and cycles are handler-guarded too.
 const createTaskDepSchema = z.object({ blocker_id: z.string().max(64) })
+// S253 (BE-5b — the audit's unbounded-read cap): the archives shelf's ADDITIVE paging
+// param — the quicknotes archiveQuerySchema grammar (coerced int, hard bounds), so
+// absence = page 0 and every pre-S253 client stays byte-identically served.
+const archiveOffsetSchema = z.object({ offset: z.coerce.number().int().min(0).max(100_000).default(0) })
 // 0033 — backlog «برنامه آتی» plan docs: long-form planning entries per project, each
 // save appending a revision row (backlog_doc_revisions) that feeds the history list.
 const createBacklogDocSchema = z.object({
@@ -551,6 +555,14 @@ export function devboardRoutes(cfg: Config) {
     const user = c.get('user')
     const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
     if (!p) return errJson(c, ErrorCode.not_found)
+    // S253 (BE-5b — the audit's "archives GET unbounded"): the shelf is now CAPPED at
+    // 200 rows per page (prod's biggest project holds 149 — no user impact today) with
+    // an ADDITIVE ?offset= for paging deeper history (the quicknotes archive grammar:
+    // coerced int, 0 ≤ offset ≤ 100_000; absence = page 0, so every existing client —
+    // the island, the desktop mirror — is byte-identically served as before).
+    const offsetParsed = archiveOffsetSchema.safeParse(c.req.query())
+    if (!offsetParsed.success) return errJson(c, ErrorCode.invalid_input)
+    const offset = offsetParsed.data.offset
     type ArchRow = {
       id: string; title: string; priority: string; done_at: string | null
       original_created_at: string; archived_at: string; tags: string
@@ -562,13 +574,13 @@ export function devboardRoutes(cfg: Config) {
     let rows: ArchRow[]
     try {
       rows = await cfg.db.query<ArchRow>(
-        `SELECT id, title, priority, done_at, original_created_at, archived_at, tags, sprint_id, sprint_name_snapshot FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`,
-        [p.id],
+        `SELECT id, title, priority, done_at, original_created_at, archived_at, tags, sprint_id, sprint_name_snapshot FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC LIMIT 200 OFFSET ?`,
+        [p.id, offset],
       )
     } catch {
       rows = (await cfg.db.query<Omit<ArchRow, 'sprint_name_snapshot'>>(
-        `SELECT id, title, priority, done_at, original_created_at, archived_at, tags, sprint_id FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC`,
-        [p.id],
+        `SELECT id, title, priority, done_at, original_created_at, archived_at, tags, sprint_id FROM project_archives WHERE project_id = ? ORDER BY archived_at DESC LIMIT 200 OFFSET ?`,
+        [p.id, offset],
       )).map((r) => ({ ...r, sprint_name_snapshot: null }))
     }
     let parsed: { name: string; color: string }[][] = rows.map(() => [])

@@ -18,7 +18,7 @@
 // project id (or task/category/sprint id from another user) is simply not found.
 
 import { uuid } from '../lib/ids'
-import { executeIn } from '../lib/inchunk'
+import { executeIn, queryIn } from '../lib/inchunk' // queryIn: S253 (BE-1) — setTaskTags' batched finds
 import type { Config, DevTaskRow, SprintRow, SprintStatus, BacklogDocRow, StrategyRow, StrategyStatus } from '../types'
 
 export async function logHistory(cfg: Config, projectId: string, note: string) {
@@ -284,28 +284,41 @@ export function tagPaletteColor(name: string): string {
 /** B4: pick the palette color least-used by this user's existing tags — collisions
  * ("Refactor" vs "Tech-Debt" both #E59AA5) become structurally rare instead of
  * hash-inevitable. Ties break toward the palette's fixed order (deterministic for an
- * empty tag table). */
-export async function tagColorFor(cfg: Config, userId: string): Promise<string> {
+ * empty tag table).
+ * S253 (BE-1): the counting core is shared with setTaskTags' batched create arm —
+ * ONE palette read assigns EVERY missing name (the per-name sequential pick mirrors
+ * what N back-to-back tagColorFor calls produced, without N round trips). */
+export async function tagColorCounts(cfg: Config, userId: string): Promise<Map<string, number> | null> {
   try {
     const counts = await cfg.db.query<{ color: string; n: number }>(
       'SELECT color, COUNT(*) AS n FROM tags WHERE user_id = ? GROUP BY color',
       [userId],
     )
-    const used = new Map(counts.map((r) => [r.color.toLowerCase(), r.n]))
-    let best = TAG_PALETTE[0]
-    let bestN = Infinity
-    for (const c of TAG_PALETTE) {
-      const n = used.get(c.toLowerCase()) ?? 0
-      if (n < bestN) {
-        best = c
-        bestN = n
-        if (n === 0) break // untouched color — take it, stop scanning
-      }
-    }
-    return best
+    return new Map(counts.map((r) => [r.color.toLowerCase(), r.n]))
   } catch {
-    return tagPaletteColor('fallback') // defensive: table not migrated yet
+    return null // defensive: table not migrated yet — tagColorFor keeps its legacy fallback
   }
+}
+
+/** The pure pick over a color-count map (tagColorCounts' shape): least-used wins,
+ * ties break toward the palette's fixed order, an untouched color wins immediately. */
+export function leastUsedPaletteColor(used: Map<string, number>): string {
+  let best = TAG_PALETTE[0]
+  let bestN = Infinity
+  for (const c of TAG_PALETTE) {
+    const n = used.get(c.toLowerCase()) ?? 0
+    if (n < bestN) {
+      best = c
+      bestN = n
+      if (n === 0) break // untouched color — take it, stop scanning
+    }
+  }
+  return best
+}
+
+export async function tagColorFor(cfg: Config, userId: string): Promise<string> {
+  const used = await tagColorCounts(cfg, userId)
+  return used ? leastUsedPaletteColor(used) : tagPaletteColor('fallback')
 }
 
 /** B2 (2026-09-12): tags.usage_count was dead — written 0 at insert, never maintained.
@@ -437,29 +450,90 @@ export async function findOrCreateTag(cfg: Config, userId: string, name: string,
 // (B2) and (b) rewrites the task's search_tags so the FTS index follows (B3/0051).
 // S252 (BE-6/BE-12): the create arm resolves through the shared findOrCreateTag —
 // same NOCASE semantics this helper always had, now with the ON CONFLICT race belt.
+// S253 (BE-1 — the audit's N+1 kill): the whole resolve+sync is BATCHED — a 12-tag
+// save used to cost up to ~30 sequential D1 round trips (per-name find, per-missing-
+// name palette+insert, per-link delete/insert); it is now a fixed ~6-9 regardless of
+// tag count, all under the D1 param cap via queryIn/executeIn chunking:
+//   1. ONE find (NOCASE IN, oldest-row-wins on legacy case twins — findOrCreateTag's
+//      grammar, verified: COLLATE NOCASE applies to IN-list comparison);
+//   2. missing names → ONE palette read (tagColorCounts) + ONE chunked multi-row
+//      INSERT … ON CONFLICT(user_id, name) DO UPDATE … RETURNING (the H1 race recipe
+//      findOrCreateTag uses, one statement for ALL names — a concurrent same-name
+//      write still resolves to the existing id, never a 500);
+//   3. ONE existing-links read, then executeIn-chunked DELETE (dropped) + INSERT OR
+//      IGNORE … SELECT (added). Response shape unchanged: TaskTagJoin[] ordered by
+//      name (sorted in JS so chunk-merging can never reorder).
 export async function setTaskTags(cfg: Config, userId: string, taskId: string, names: string[]): Promise<TaskTagJoin[]> {
   const wanted = normalizeTagNames(names)
-  const keepIds: string[] = []
-  for (const name of wanted) {
-    keepIds.push(await findOrCreateTag(cfg, userId, name))
+  const key = (n: string) => n.toLowerCase()
+  // 1. ONE find: every wanted name against the library, case-insensitively.
+  const found = wanted.length
+    ? await queryIn<{ id: string; name: string }>(
+        cfg.db,
+        'SELECT id, name FROM tags WHERE user_id = ? AND name COLLATE NOCASE IN {{IN}} ORDER BY created_at',
+        [userId],
+        wanted,
+      )
+    : []
+  const idByName = new Map<string, string>()
+  for (const row of found) if (!idByName.has(key(row.name))) idByName.set(key(row.name), row.id) // oldest wins
+  // 2. Missing names → ONE palette read + ONE chunked multi-row create.
+  const missing = wanted.filter((n) => !idByName.has(key(n)))
+  if (missing.length) {
+    const now = new Date().toISOString()
+    const used = (await tagColorCounts(cfg, userId)) ?? new Map<string, number>()
+    const rows: { id: string; name: string; color: string }[] = missing.map((name) => {
+      const color = leastUsedPaletteColor(used)
+      used.set(color.toLowerCase(), (used.get(color.toLowerCase()) ?? 0) + 1) // the next pick sees this one
+      return { id: uuid(), name, color }
+    })
+    // 6 bound params/row → 16 rows/chunk under D1's 100-param cap.
+    for (let i = 0; i < rows.length; i += 16) {
+      const part = rows.slice(i, i + 16)
+      const values = part.map(() => '(?, ?, ?, ?, 0, ?)').join(', ')
+      const params = part.flatMap((r) => [r.id, userId, r.name, r.color, now])
+      const inserted = await cfg.db.query<{ id: string; name: string }>(
+        `INSERT INTO tags (id, user_id, name, color, usage_count, created_at) VALUES ${values}
+         ON CONFLICT(user_id, name) DO UPDATE SET usage_count = tags.usage_count
+         RETURNING id, name`,
+        params,
+      )
+      for (const r of inserted) idByName.set(key(r.name), r.id)
+    }
+    // Belt (unreachable in practice — every RETURNING row maps a sent name): any name
+    // the batch still didn't resolve rides the single-name shared resolver.
+    for (const name of missing) {
+      if (!idByName.has(key(name))) idByName.set(key(name), await findOrCreateTag(cfg, userId, name))
+    }
   }
+  const keepIds = wanted.map((n) => idByName.get(key(n))!).filter(Boolean)
+  // 3. ONE existing-links read + chunked link sync (add missing, drop unkept).
   const existing = await cfg.db.query<{ tag_id: string }>('SELECT tag_id FROM dev_task_tags WHERE task_id = ?', [taskId])
   const keep = new Set(keepIds)
-  for (const row of existing) {
-    if (!keep.has(row.tag_id)) await cfg.db.execute('DELETE FROM dev_task_tags WHERE task_id = ? AND tag_id = ?', [taskId, row.tag_id])
+  const dropped = existing.map((r) => r.tag_id).filter((id) => !keep.has(id))
+  if (dropped.length) {
+    await executeIn(cfg.db, 'DELETE FROM dev_task_tags WHERE task_id = ? AND tag_id IN {{IN}}', [taskId], dropped)
   }
-  for (const id of keepIds) {
-    await cfg.db.execute('INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) VALUES (?, ?)', [taskId, id])
+  if (keepIds.length) {
+    await executeIn(
+      cfg.db,
+      'INSERT OR IGNORE INTO dev_task_tags (task_id, tag_id) SELECT ?, id FROM tags WHERE id IN {{IN}}',
+      [taskId],
+      keepIds,
+    )
   }
   // S30 (B2 + B3): usage_count follows the link delta (dropped links included), and
   // the task's searchable label text is rewritten so FTS sees the new set.
   await refreshTagUsage(cfg, [...keepIds, ...existing.map((r) => r.tag_id)])
   await syncTaskSearchTags(cfg, taskId)
-  if (!keepIds.length) return [] // cleared — an empty IN () is not valid SQL
-  return cfg.db.query<TaskTagJoin>(
-    'SELECT ? AS task_id, id, name, color FROM tags WHERE id IN (' + keepIds.map(() => '?').join(',') + ') ORDER BY name',
-    [taskId, ...keepIds],
+  if (!keepIds.length) return [] // cleared — nothing to paint
+  const joined = await queryIn<TaskTagJoin>(
+    cfg.db,
+    'SELECT ? AS task_id, id, name, color FROM tags WHERE id IN {{IN}}',
+    [taskId],
+    keepIds,
   )
+  return joined.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 }
 
 // Priority-first column ordering (user request 2026-09-12: "they must be auto-sorted in

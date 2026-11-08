@@ -670,3 +670,5 @@ must stay last). Restore is in-place and destructive: `npx wrangler d1 time-trav
 | 2026-11-08T02:36:50.264Z | pm-app-prod | 65 | 00002041-00000000-0000511d-73cfb44ef36ce7a5ed4fdf3355290198 | S253: pre-0067 projects audit indexes (prod) |
 | 2026-11-08T02:36:54.863Z | pm-app-dev | 65 | 00001199-00000000-0000511d-260db82b91fa1f9f394928c316f6bd44 | S253: pre-0067 projects audit indexes (dev) |
 | 2026-11-08T02:41:31.031Z | pm-app-prod | 65 | 00002043-00000000-0000511d-28e04f19d7438b9aecb1d60f00a15713 | S253: pre-0067 apply, fresh at apply time (prod) |
+| 2026-11-08T02:44:51.465Z | pm-app-prod | 66 | 00002044-0000000a-0000511d-e31b823da6468043a55dce85c0c2d0c8 | S253: post-0067 orphan-archive cleanup — 1 row swept (prod) |
+| 2026-11-08T02:44:53.856Z | pm-app-dev | 66 | 0000119b-00000008-0000511d-6da425a0c4dd7ed053b84f7505dff305 | S253: post-0067 orphan-archive cleanup — 2 rows swept (dev) |

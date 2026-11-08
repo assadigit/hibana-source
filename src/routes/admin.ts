@@ -686,6 +686,11 @@ async function runPurge(cfg: Config): Promise<{ projects: number; notes: number;
   )
   await purgeShotBytes(cfg, gone.map((g) => g.id))
   await cfg.db.transaction(async (tx) => {
+    // S253 (audit DB-3): project_archives has NO FK (0046) — sweep the purged
+    // projects' archive rows BEFORE the projects DELETE (the subquery reads the rows
+    // being removed). CASCADE-consistent with every other child table; the audit
+    // plan's only destructive-semantics change (flagged in the Changelogs row).
+    tx.sql('DELETE FROM project_archives WHERE project_id IN (SELECT id FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?)', [cutoff])
     tx.sql('DELETE FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff]) // children cascade
     tx.sql('DELETE FROM quick_notes WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff])
     tx.sql('DELETE FROM sadhana_tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?', [cutoff]) // journal/tags/logs cascade

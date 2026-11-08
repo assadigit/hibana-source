@@ -746,6 +746,12 @@ export function projectsRoutes(cfg: Config) {
       // their storage keys unfindable, orphaning them in KV/GitHub forever (best-effort;
       // the delete proceeds regardless).
       await purgeShotBytes(cfg, [p.id])
+      // S253 (audit DB-3): project_archives carries NO FK (0046 predates the FK
+      // discipline) — delete its rows explicitly BEFORE the projects row, so a purged
+      // project's history goes with it (CASCADE-consistent with every other child
+      // table). This is the audit plan's only destructive-semantics change, flagged in
+      // the Changelogs row; the pre-0067 orphan rows were cleaned once (§9 record).
+      await cfg.db.execute('DELETE FROM project_archives WHERE project_id = ?', [p.id])
       await cfg.db.execute('DELETE FROM projects WHERE id = ? AND user_id = ?', [p.id, user.id])
     } else {
       // Soft delete — undo-toast stays honest for 7 days (Q2 decision), then the cron purges.

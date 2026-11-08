@@ -313,6 +313,11 @@ export function settingsRoutes(cfg: Config) {
       // AP-32: same null-out as the single purge — no dangling note attach ids. Runs
       // BEFORE the projects DELETE (the subquery reads the rows being removed).
       tx.sql('UPDATE quick_notes SET project_id = NULL WHERE user_id = ? AND project_id IN (SELECT id FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL)', [user.id, user.id])
+      // S253 (audit DB-3): project_archives has NO FK (0046) — sweep this user's
+      // purged projects' archive rows BEFORE the projects DELETE (the subquery reads
+      // the rows being removed). CASCADE-consistent with every other child table;
+      // the audit plan's only destructive-semantics change (flagged in the Changelogs).
+      tx.sql('DELETE FROM project_archives WHERE project_id IN (SELECT id FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL)', [user.id])
       tx.sql('DELETE FROM projects WHERE user_id = ? AND deleted_at IS NOT NULL', [user.id]) // children cascade
       tx.sql('DELETE FROM quick_notes WHERE user_id = ? AND deleted_at IS NOT NULL', [user.id])
       tx.sql('DELETE FROM sadhana_tasks WHERE user_id = ? AND deleted_at IS NOT NULL', [user.id]) // journal/tags/logs cascade

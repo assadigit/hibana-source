@@ -667,3 +667,6 @@ must stay last). Restore is in-place and destructive: `npx wrangler d1 time-trav
 | 2026-11-06T19:12:42.026Z | pm-app-prod | 63 | 00001f01-00000000-0000511b-f43182fdf44351e9204f942f5d15b47b | S249: pre-0065 sprint/deadline/deps (prod) — the owner-approved re-land round |
 | 2026-11-07T20:43:53.111Z | pm-app-dev | 64 | 00001185-00000000-0000511c-ddca80b6c4d67ffad70162acecd8cc47 | pre-0066 strategies (S250) |
 | 2026-11-07T20:43:59.891Z | pm-app-prod | 64 | 00001fee-00000002-0000511c-c652a548556fa19058b561c016b8b095 | pre-0066 strategies (S250) |
+| 2026-11-08T02:36:50.264Z | pm-app-prod | 65 | 00002041-00000000-0000511d-73cfb44ef36ce7a5ed4fdf3355290198 | S253: pre-0067 projects audit indexes (prod) |
+| 2026-11-08T02:36:54.863Z | pm-app-dev | 65 | 00001199-00000000-0000511d-260db82b91fa1f9f394928c316f6bd44 | S253: pre-0067 projects audit indexes (dev) |
+| 2026-11-08T02:41:31.031Z | pm-app-prod | 65 | 00002043-00000000-0000511d-28e04f19d7438b9aecb1d60f00a15713 | S253: pre-0067 apply, fresh at apply time (prod) |

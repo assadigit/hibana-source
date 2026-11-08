@@ -205,6 +205,7 @@ import {
   sprintStatusOf, // S240 (0065): lifecycle coalescing (lagging-D1 belt included)
   findActiveSprint, // S240 (0065): the one-active lookup (spec §5.1)
   sprintNameTaken, // S240 (0065): case-insensitive project-scoped name uniqueness (§4.3)
+  uniqueViolationOn, // S253 (0067): the BE-8 catch-and-map — TOCTOU belt verdicts → the existing 409s
   taskDepsForProject, // S241 (0065 read surface): the flat per-project dep edge join (§15)
   boardTaskRows, // S241: task rows + the server-computed effective deadline (§10/§18)
   ownedStrategy, // S250 (0066): user-scoped strategy resolution (STRATEGIES-SPEC §4)
@@ -820,19 +821,50 @@ export function devboardRoutes(cfg: Config) {
       }
       // S240: a created-with-both-dates sprint is a CLOSED window = completed (the
       // backfill's mapping, kept true by every writer); started-only = active.
-      await cfg.db.execute(
-        `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at, strategy_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, p.id, name, body.version ?? null, body.description ?? '', startedAt, endedAt, now, endedAt != null ? 'completed' : 'active', body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now, body.strategy_id ?? null],
-      )
+      //
+      // S253 (0067 — BE-8 catch-and-map): the sprintNameTaken / auto-close pre-checks
+      // above can race a concurrent write (a D1 batch cannot wrap read-modify-write);
+      // the new idx_sprints_project_name + the 0065 idx_sprints_one_active are the
+      // belt. A verdict maps to the SAME 409 the pre-check would have answered —
+      // never a raw 500. (The one-active catch rides the same block: a started-only
+      // create is an ACTIVATION, so this INSERT can hit either partial — project_id
+      // text alone is ambiguous between them, but only one-active is reachable from
+      // THIS is_draft=0 statement: the draft belt fires on the is_draft=1 branch.)
+      try {
+        await cfg.db.execute(
+          `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at, strategy_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
+          [id, p.id, name, body.version ?? null, body.description ?? '', startedAt, endedAt, now, endedAt != null ? 'completed' : 'active', body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now, body.strategy_id ?? null],
+        )
+      } catch (err) {
+        if (uniqueViolationOn(err, 'idx_sprints_project_name')) return errJson(c, ErrorCode.duplicate)
+        if (uniqueViolationOn(err, 'sprints.project_id')) {
+          const winner = await findActiveSprint(cfg, p.id)
+          return c.json({ error: ErrorCode.sprint_active_exists, active_id: winner?.id ?? null }, 409)
+        }
+        throw err
+      }
       await logHistory(cfg, p.id, t('{name} started', '{name} شروع شد', { name }))
       return c.json({ ok: true, id, name, version: body.version ?? null, draft: false }, 201)
     }
-    await cfg.db.execute(
-      `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at, strategy_id)
-       VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?, 'planned', ?, ?, ?, ?, ?)`,
-      [id, p.id, name, body.version ?? null, body.description ?? '', now, now, body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now, body.strategy_id ?? null],
-    )
+    // S253 (0067 — BE-8 catch-and-map): the draft_exists pre-check above can race a
+    // concurrent create; idx_sprints_one_draft (this is_draft=1 INSERT is its only
+    // reachable belt) and idx_sprints_project_name map to the existing 409s — the
+    // winner's draft id rides the draft_exists body exactly like the pre-check's.
+    try {
+      await cfg.db.execute(
+        `INSERT INTO sprints (id, project_id, name, version, description, started_at, ended_at, is_draft, created_at, status, emoji, due_at, due_origin_at, updated_at, strategy_id)
+         VALUES (?, ?, ?, ?, ?, ?, NULL, 1, ?, 'planned', ?, ?, ?, ?, ?)`,
+        [id, p.id, name, body.version ?? null, body.description ?? '', now, now, body.emoji ?? null, body.due_at ?? null, body.due_at != null ? now : null, now, body.strategy_id ?? null],
+      )
+    } catch (err) {
+      if (uniqueViolationOn(err, 'idx_sprints_project_name')) return errJson(c, ErrorCode.duplicate)
+      if (uniqueViolationOn(err, 'sprints.project_id')) {
+        const winner = await cfg.db.query<{ id: string }>('SELECT id FROM sprints WHERE project_id = ? AND is_draft = 1', [p.id])
+        return c.json({ error: ErrorCode.draft_exists, draft_id: winner[0]?.id ?? null }, 409)
+      }
+      throw err
+    }
     await logHistory(cfg, p.id, t('{name} defined', '{name} تعریف شد', { name }))
     return c.json({ ok: true, id, name, version: body.version ?? null, draft: true }, 201)
   })
@@ -968,7 +1000,14 @@ export function devboardRoutes(cfg: Config) {
       if (!sets.length) return c.json({ ok: true })
       push('updated_at', now) // S240 (D8): every sprint PATCH stamps updated_at
       params.push(s.id)
-      await cfg.db.execute(`UPDATE sprints SET ${sets.join(', ')} WHERE id = ?`, params)
+      // S253 (0067 — BE-8 catch-and-map): the draft-rename pre-check raced a concurrent
+      // write; the belt answers the pre-check's own 409 (never a raw 500).
+      try {
+        await cfg.db.execute(`UPDATE sprints SET ${sets.join(', ')} WHERE id = ?`, params)
+      } catch (err) {
+        if (uniqueViolationOn(err, 'idx_sprints_project_name')) return errJson(c, ErrorCode.duplicate)
+        throw err
+      }
       return c.json({ ok: true })
     }
     const siblings = await cfg.db.query<SprintRow>('SELECT * FROM sprints WHERE project_id = ? AND is_draft = 0 ORDER BY started_at', [s.project_id])
@@ -1028,7 +1067,19 @@ export function devboardRoutes(cfg: Config) {
     if (!sets.length) return c.json({ ok: true })
     push('updated_at', now) // S240 (D8): every sprint PATCH stamps updated_at
     params.push(s.id)
-    await cfg.db.execute(`UPDATE sprints SET ${sets.join(', ')} WHERE id = ?`, params)
+    // S253 (0067 — BE-8 catch-and-map): the rename pre-check raced a concurrent write
+    // (name belt), or the reopen's status='active' raced the one-active pre-check
+    // (the 0065 belt, same statement) — each answers its own existing 409 shape.
+    try {
+      await cfg.db.execute(`UPDATE sprints SET ${sets.join(', ')} WHERE id = ?`, params)
+    } catch (err) {
+      if (uniqueViolationOn(err, 'idx_sprints_project_name')) return errJson(c, ErrorCode.duplicate)
+      if (uniqueViolationOn(err, 'sprints.project_id')) {
+        const winner = await findActiveSprint(cfg, s.project_id)
+        return c.json({ error: ErrorCode.sprint_active_exists, active_id: winner?.id ?? null }, 409)
+      }
+      throw err
+    }
     return c.json({ ok: true })
   })
 
@@ -1164,10 +1215,17 @@ export function devboardRoutes(cfg: Config) {
     if (await strategyNameTaken(cfg, p.id, body.name)) return errJson(c, ErrorCode.duplicate)
     const id = uuid()
     const now = new Date().toISOString()
-    await cfg.db.execute(
-      'INSERT INTO strategies (id, project_id, name, description, priority, status, emoji, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)',
-      [id, p.id, body.name, body.description ?? '', body.priority ?? 'medium', 'active', body.emoji ?? null, now, now],
-    )
+    // S253 (0067 — BE-8 catch-and-map): the strategyNameTaken pre-check raced a
+    // concurrent define; the belt answers the pre-check's own 409 (never a raw 500).
+    try {
+      await cfg.db.execute(
+        'INSERT INTO strategies (id, project_id, name, description, priority, status, emoji, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)',
+        [id, p.id, body.name, body.description ?? '', body.priority ?? 'medium', 'active', body.emoji ?? null, now, now],
+      )
+    } catch (err) {
+      if (uniqueViolationOn(err, 'idx_strategies_project_name')) return errJson(c, ErrorCode.duplicate)
+      throw err
+    }
     await logHistory(cfg, p.id, t('{name} strategy defined', 'استراتژی {name} تعریف شد', { name: body.name }))
     return c.json({ ok: true, id }, 201)
   })
@@ -1203,7 +1261,14 @@ export function devboardRoutes(cfg: Config) {
     if (!sets.length) return c.json({ ok: true })
     push('updated_at', now) // the D8 sync doctrine — every write stamps it
     params.push(st.id)
-    await cfg.db.execute(`UPDATE strategies SET ${sets.join(', ')} WHERE id = ?`, params)
+    // S253 (0067 — BE-8 catch-and-map): the rename pre-check raced a concurrent write;
+    // the belt answers the pre-check's own 409 (never a raw 500).
+    try {
+      await cfg.db.execute(`UPDATE strategies SET ${sets.join(', ')} WHERE id = ?`, params)
+    } catch (err) {
+      if (uniqueViolationOn(err, 'idx_strategies_project_name')) return errJson(c, ErrorCode.duplicate)
+      throw err
+    }
     return c.json({ ok: true })
   })
 

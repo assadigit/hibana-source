@@ -95,6 +95,21 @@ export async function sprintNameTaken(cfg: Config, projectId: string, name: stri
   return rows.some((r) => r.id !== excludeId)
 }
 
+/** S253 (0067 — the BE-8 catch-and-map half of the TOCTOU belt): recognize a UNIQUE
+ * violation thrown by one of the migration's indexes so the write sites can answer the
+ * SAME 409 their pre-check would have returned instead of a raw 500. Both runtimes
+ * surface the SQLite core message (D1 prefixes "D1_ERROR: ", node:sqlite doesn't);
+ * expression indexes report their NAME ("UNIQUE constraint failed: index
+ * 'idx_sprints_project_name'") while plain/partial column uniques report the COLUMN
+ * ("UNIQUE constraint failed: sprints.project_id" — the one-draft AND one-active
+ * partials share this text; the call site's context decides which index fired, which
+ * is why each catch names only the indexes its statement can actually hit). */
+export function uniqueViolationOn(err: unknown, ...needles: string[]): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (!msg.includes('UNIQUE constraint failed')) return false
+  return needles.some((n) => msg.includes(n))
+}
+
 // S235 (the sprint audit — §4.2 overlap gap): the shared sprint-window overlap
 // check, lifted out of the PATCH handler (devboard.ts:666-686) so POST-create-
 // with-dates + POST-start can call the SAME validation. Without this, a user

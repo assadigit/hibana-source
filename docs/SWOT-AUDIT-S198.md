@@ -349,4 +349,4 @@ Everything else in this audit is code/doc/CI-level and needs no schema or policy
 - Live state at audit time: hibana.ir @ v0.4.1.23, sw v432, schema 63 (per S197 release record);
   both healthchecks up on natural ticks.
 
-*The execution plan for these findings lives in `SESSION-BRIEF-S199.md` (root). Read that next.*
+*The execution plan for these findings lives in `SESSION-BRIEF-S199.md` (docs/). Read that next.*

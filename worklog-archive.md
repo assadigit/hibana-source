@@ -2573,10 +2573,6 @@ DB-index approval ask; Track B leftovers: Lighthouse exact scores + the
 bundle diet).
 
 ---
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S198 — THE SWOT AUDIT (owner-commissioned; docs-only round)
 
 Commissioned by the owner: "a thorough SWOT AUDIT of the project — performance,
@@ -2612,10 +2608,6 @@ fabric is vendor, not dist); one agent claim corrected during verification
 The S197 open-risk list stands (Track B leftovers: Lighthouse exact scores +
 bundle diet, now concretized as UX-1/UX-17 + PERF-7/UX-7; Track C, now
 HLTH-*). NEXT: hand docs/SESSION-BRIEF-S199.md to the next agent.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S199 — DEBT ZERO + TRUST GATES (the S198 audit's fix round)
 
 Executed per docs/SESSION-BRIEF-S199.md Batches 1-5 (5 partial), on tree 195bd7e →
@@ -2697,10 +2689,6 @@ CLEAN) → healthchecks both UP (natural ticks).
   aria-labels, UX-5 skip-link, UX-6 fine-world rings.
 - The dependabot PRs (4 dynamic runs observed during this release) are still
   dep-bump noise; the advisory-on-PR workers-smoke keeps them non-blocking.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S200 — SPEED + DIET (the S198 audit's perf round)
 
 Executed per docs/SESSION-BRIEF-S199.md's S200 plan (all six batches) on tree c80c184 →
@@ -2841,10 +2829,6 @@ the skip-link/aria-label HTML probes + health ok/up/63) → tag v0.4.1.25 → zi
   continues per HLTH-19 but these two predate it.
 
 ---
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S201 — MAJORS + APPROVALS (the S198 brief's owner-decision round; docs/ops only — no version bump)
 
 Task ID: S201 (single-agent session)
@@ -2878,10 +2862,6 @@ Stage Summary:
 - The DR drills are now PROVEN (and their two latent bugs dead — the zero-runs policy was hiding them); the error monitor closes UX-11 (three healthchecks now: backup cron, uptime, error growth); the worklog can never again grow monotonic.
 - Next session: on Ali's written YES per ask, execute the approved items (each behind the full ladder + release ritual; PERF-16 needs the §9 bookmark ritual on both DBs); otherwise the S200 banked list (the 86-spec e2e DB-constant sweep, opportunistic --accent-ink conversions, the mobile Lighthouse preset UX-17) + the owner-machine drill run reminder stand.
 - VERIFICATION (post-push): 0779b79 → CI #560 (38164530115) ALL JOBS GREEN — ci 3.8 min (audit + eslint 0/0 + escape-lint + build + bundle + precache + typecheck + cache-bust + parity + vitest 632 + smoke + dist-wiring + workers-smoke + Lighthouse) + e2e shards 6.7/6.3 min in parallel → CD #410 GREEN (same bits redeployed; no asset changes) → error monitor DISPATCH run #1 (38165291625) GREEN with the real D1 probe in its log ("prod error_log since 2026-10-10T18:47:36Z: total=0 5xx=0" + "error monitor PASS") → healthchecks "Hibana errors" flipped new→up (n_pings=1 @ 18:47:37, exactly the run's ping; the other two checks up on natural ticks) → hibana.ir health ok/up/63. The monitor's first scheduled cron run: tomorrow 04:23 UTC.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S202 — THE APPROVED ASKS (the S201 rule-4 round; the owner's written YES executed)
 
 Executed per the owner's chat reply to the S201 asks ("1. ok do it. yes / 2. do it. /
@@ -3052,10 +3032,6 @@ majors — CI plumbing, one deliberate round when taken), HLTH-24's incremental
 project-page.js extraction (only when next touched for real work).
 
 ---
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S204 — THE DEPENDABOT ROUND + THE ACCENT-INK SWEEP + THE MOBILE LANE (the banked-leftovers closer)
 
 **Dispatch:** "yes finish all the works and tasks. then wrap up this session. Push commit update changelogs and deploy."
@@ -3081,10 +3057,6 @@ project-page.js extraction (only when next touched for real work).
 - Artifacts: commits 3891c25 (feature) + this docs round; tag v0.4.1.28; zip hibana.0.4.1.28.zip (/home/z/upload + the sandbox download folder); new tools lighthouserc.mobile.json + qa/s204-live-verify.mjs.
 
 ---
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S205 — THE KANBAN ENTRY-POINT ROUND (the dedicated /kanban experience + the project switcher + the Go-desktop-readiness docs)
 
 Task ID: S205 (single-agent session)
@@ -3136,10 +3108,6 @@ Stage Summary:
 - Artifacts: commits 6532764 + 4272321 + f9273de; tag v0.4.1.32; zip hibana.0.4.1.32.zip; new tools qa/s206-sprint-probe{,2,3,4,5}.mjs + qa/s206-repro-{stale,live2..15}.mjs + qa/s206-live-verify.mjs + qa/s206-final-inpage.mjs + e2e/s206-kanban-edge.spec.ts + e2e/s206-sprint-fixes.spec.ts.
 
 ---
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S207 — THE MOTHER-CONTAINER + TRUE-FULL-WIDTH + GHOST-SWEEP ROUND (the owner's three-item follow-up)
 
 Task ID: S207 (single-agent session)
@@ -3161,10 +3129,6 @@ Stage Summary:
 - LIVE hibana.ir + projects.hibana.ir @ v0.4.1.33, sw v442, schema 63 — all three owner asks shipped + verified live on both hosts; the switcher is clean (7 real projects); the sweeper is the standing post-probe-round remedy.
 - Remaining (owner-side or next-phase, all banked from S205/S206): the M0 API additions for the Go desktop; the owner's five port-plan questions; the mobile More-sheet Kanban row e2e; the dated-create overlap validation (INSERT path); the request-swallow is worked around, not root-caused (apply the signal+deadline+retry recipe if it appears on other same-URL GET paths).
 - Artifacts: commit fd42f56; tag v0.4.1.33; zip hibana.0.4.1.33.zip; new tools qa/s207-ghost-sweep.mjs + e2e/s207-kanban-frame.spec.ts.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S208 — THE TASK-OPTION PARITY ROUND (the owner's follow-up: the upload button + all the original hibana's task options on the kanban)
 
 Task ID: S208 (single-agent session)
@@ -3183,10 +3147,6 @@ Work Log:
 
 Stage Summary:
 - LIVE hibana.ir + projects.hibana.ir @ v0.4.1.34 (sw v443): the kanban editor now carries the original hibana's full task option set — the upload button in BOTH new-task and edit modals (the owner's exact complaint), staged→pinned attachments with progress/cancel/notes/delete/zoom, tags on create, the card pin badge + pinned-pictures dialog, and Copy on the card menu. One data-loss bug fixed en route (the mid-edit title wipe). Left as documented (deliberate): the title/content SPLIT + contenteditable rich editor (the board's single textarea is its Session-22/23 contract; the port would change the editing model), the detail slide-over (the board opens the editor directly — faster), paste/drag-drop upload (the original's dialogs are picker-only too).
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session close — S208 WRAPPED, S209 HANDED OVER (the owner's wrap-up request)
 
 Task ID: S208-close (single-agent session)
@@ -3204,10 +3164,6 @@ Stage Summary:
 - Everything for S205→S208 is committed, pushed, deployed, and live-verified. Nothing remained to push — this session's only new commit is the docs seal (this entry + the SESSION-BRIEF status line).
 - S209 HANDED OVER (the owner's next-session agenda, verbatim intent): (1) make the kanban INSIDE hibana (the in-app board surfaces) 1:1 identical to the kanban at projects.hibana.ir/kanban — they are the same thing; the domain is just the direct, less-distracting entry; (2) prepare the COMPLETE spec + document pack to replicate this kanban, its features, and its sync ability in GO for a Windows app (both an installable and a portable exe) — building on docs/project-kanban/'s six S205 documents (FEATURE-INVENTORY, USER-FLOWS, DATA-MODEL, API-AND-SYNC-CONTRACT, GO-DESKTOP-PORT-PLAN, TEST-MATRIX), which the next session must expand from port-PLAN to full replication specs.
 - Known starting points for S209's parity audit: the deliberate in-app/board deltas documented in S206/S207 — /board.html keeps the classic icons-rail + Back-link contracts vs /kanban's edge-hover rail + no-Back; the project.html embedded board surface; the title/content split + detail slide-over deltas documented in the S208 stage summary.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S209 — THE KANBAN 1:1 PARITY ROUND + THE GO WINDOWS DESKTOP REPLICATION SPEC PACK
 
 Task ID: S209 (single-agent session with doc sub-agents)
@@ -3228,10 +3184,6 @@ Stage Summary:
 - LIVE both hosts @ v0.4.1.35 (sw v444, schema 63): the kanban surfaces are 1:1 — same mother container, same editor capability vocabulary, same label manager, same badges — with the entry-contextual exceptions deliberately decided, tested (s209 e2e), and documented (FEATURE-INVENTORY §13). The Go Windows desktop replication spec pack is COMPLETE in docs/project-kanban/ (the port itself NOT started, per the brief).
 - Remaining (owner-side or next-phase): the owner's go/no-go on the M0 API additions (API-AND-SYNC-CONTRACT §7a-7e) + the ten port decisions (GO-DESKTOP-PORT-PLAN §10); the editor-stack extraction into the shared lib (the split-editor's long-term convergence — banked); the mobile More-sheet Kanban row e2e (banked since S205).
 - Artifacts: commit df3a8ee; tag v0.4.1.35; zip hibana.0.4.1.35.zip; new tools e2e/s209-kanban-parity.spec.ts + src/tests/kanban-parity.test.ts + qa/s209-live-verify.mjs; the nine-doc spec pack.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S210 — THE STACK-DECISION + IMPLEMENTATION-INSTRUCTIONS ROUND (the owner locks Wails v2 + WebView2 + modernc.org/sqlite)
 
 Task ID: S210 (single-agent session)
@@ -3253,10 +3205,6 @@ Stage Summary:
 - The owner's "instructions" exist: GO-DESKTOP-IMPLEMENTATION-GUIDE.md — toolchain → scaffold → island sync → transport seam → Go module skeletons → M0-M5 walkthrough → build/CI commands → acceptance → the ten hard rules; every citation re-verified in-tree at S210.
 - Remaining (owner-side): the go/no-go on M0 (API-AND-SYNC-CONTRACT §7a-7e — the FIRST build milestone, Hibana-source side) + the nine open §10 questions (conflict policy, auto-update mode, telemetry, scope, installer tech, signing, repo split, arm64, tray/hotkey).
 - Artifacts: the docs-only commit; docs/project-kanban/GO-DESKTOP-IMPLEMENTATION-GUIDE.md (NEW); GO-DESKTOP-PORT-PLAN.md / README.md / WINDOWS-PACKAGING-PLAN.md updated; this handover + Changelogs row 210 + the SESSION-BRIEF status line.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S211 — THE PHASE-2 GO-DESKTOP BUILD KICKOFF (M1 live-accepted + the M2 groundwork, in the new assadigit/hibana-desktop)
 
 Task ID: S211 (single-agent session with two build sub-agents)
@@ -3280,10 +3228,6 @@ Stage Summary:
 - The web app: UNTOUCHED at v0.4.1.35 (docs-only commit; CI skips by design; both hosts re-verified live).
 - Remaining (owner-side or next-phase): M0 §7a-7e — the owner's go (the FIRST hibana-source-side build milestone; the desktop's offline creates depend on it being DEPLOYED); the nine §10 questions (incl. the repo public/private flip + the Q7 confirmation); the desktop CI's first green run (in flight at session close — windows-latest, wails install + dual build); the windowed launch on a real Windows host (M2's side-by-side acceptance); M3-M5.
 - Artifacts: assadigit/hibana-desktop (private) main @ f56d056; hibana-source docs commit (this entry + the SESSION-BRIEF status line + Changelogs row 211 + the rotate content files); the desktop zip in the sandbox upload folder.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S212 — THE DESKTOP LOGIN-FIRST BOOT (v0.1.1 released; the owner's dogfooding report)
 
 Task ID: S212 (single-agent session)
@@ -3308,10 +3252,6 @@ Stage Summary:
 - The owner's ask is closed END-TO-END: first launch opens the sign-in card → the user auths against hibana.ir → the kanban loads; a live stored session boots straight to the board; a mid-session expiry reopens the card and a re-login recovers (outbox ops retry once). v0.1.1 is live on the Releases page, checksums verified.
 - This repo (hibana-source): DOCS-ONLY (this section + the rotation + the SESSION-BRIEF line; package stays 0.4.1.35; CI skips by design; the ladder run anyway).
 - Remaining (owner-side): the M0 §7a-7e go + the nine §10 questions; the desktop repo is still PRIVATE (the public flip = one settings toggle — needed for login-free download links); dogfood v0.1.1 on Windows (the M2 side-by-side); M3-M5.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S213 — THE DESKTOP v0.1.2 DOGFOOD FIXES + THE HIBANA LOGO AS FAVICON/APP ICON (web v0.4.1.36, assets-only)
 
 Task ID: S213 (single-agent session)
@@ -3330,10 +3270,6 @@ Stage Summary:
 - All three owner items closed in v0.1.2 (desktop): the bridge wires on the lane the user actually boots on (root-caused, unit-tested, contract-tested, browser-proven); the login gate is the web login page's own split layout with the Login.webp photo; the Hibana logo mark is the favicon AND the app icon (exe resource verified).
 - The web round ships the same logo to every browser tab (the broken .ico replaced with a real one) + the PWA icons — as v0.4.1.36 on the owner's push+deploy.
 - Remaining (owner-side): re-supply the token → push hibana-desktop main + v0.1.2-desktop (the CI tag lane builds + auto-publishes installer/portable/checksums) and push hibana-source (CI/CD → v0.4.1.36 live); dogfood v0.1.2 on Windows (sign in from the split gate → the board loads through the bridge; the exe + taskbar show the Hibana icon). Still open: the M0 §7a-7e go + the nine §10 questions (incl. both repos' visibility flip); M3 (offline mutations) → M4 (screenshot upload) → M5 (DPAPI + installer polish).
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S214 — THE S213 PUBLISH + THE DESKTOP MINIMIZE-TO-TRAY ROUND (desktop v0.1.3; web docs-only @ v0.4.1.36)
 
 Task ID: S214 (single-agent session)
@@ -3351,10 +3287,6 @@ Stage Summary:
 - The owner's ping is closed: BOTH S213 commits are published and verified (desktop release v0.1.2 live with checksums; web v0.4.1.36 live on both hosts with the real favicon).
 - The new ask is closed as desktop v0.1.3: the Hibana mark sits in the notification area all session; X hides to the tray (persisted toggle, default on); left-click / double-click / relaunching the exe restores; right-click offers Open / toggle / Quit. The exe + releases page: v0.1.1, v0.1.2, v0.1.3 all live.
 - Remaining (owner-side): dogfood v0.1.3 on Windows (the M2 side-by-side + the tray round-trip: X → tray → restore → toggle → quit); the M0 §7a-7e go + the nine §10 questions (incl. both repos' visibility flip — both PRIVATE, so release downloads currently need a logged-in GitHub account); M3 (offline mutations) → M4 (screenshot upload) → M5 (DPAPI + installer polish).
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S215 — THE DESKTOP PROJECT-SWITCHER 304 FIX (desktop v0.1.4; web docs-only @ v0.4.1.36)
 
 Task ID: S215 (single-agent session)
@@ -3373,10 +3305,6 @@ Work Log:
 Stage Summary:
 - The owner's report is closed as desktop v0.1.4: switching projects loads every board reliably — the interactive bridge never conditional-polls (the §8 cheap-poll stays with the engine, where the mirror actually has the body). Releases page: v0.1.0 → v0.1.4.
 - Remaining (owner-side): dogfood v0.1.4 (switch projects freely; the tray round unchanged); the M0 §7a-7e go + the nine §10 questions (incl. both repos' visibility flip); M3 (offline mutations) → M4 (screenshot upload) → M5 (DPAPI + installer polish).
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S216 — THE DESKTOP DARK-MODE ROUND (desktop v0.1.5; web docs-only @ v0.4.1.36)
 
 Task ID: S216 (single-agent session)
@@ -3398,10 +3326,6 @@ Stage Summary:
 - The owner's ask is closed as hibana-desktop v0.1.5: the app has dark mode (claude-dark — the web's own dark look) + its toggle in three places (the board toolbar, the sign-in card's corner, the tray's Theme submenu), persisted in the mirror, painted from the very first frame, following the OS when set to system. Both commits are LOCAL (desktop `edf6bcf` + tag `v0.1.5-desktop`; source docs-only) — the publish ritual on token return: push hibana-desktop main + `v0.1.5-desktop` (the CI tag lane builds the installer + portable + checksums and AUTO-PUBLISHES the release), push hibana-source (docs-only, CI skips by paths-ignore).
 - Dogfood order for v0.1.5: toggle dark at the login corner → sign in (stays dark) → flip from the toolbar → the tray's Theme menu (Light/Dark/Follow system) → restart (persists) → Follow system + a Windows app-mode flip (follows live) → re-check the v0.1.4 switcher + the v0.1.3 tray round.
 - Remaining (owner-side): re-supply the GitHub token; the M0 §7a-7e go + the nine §10 questions (incl. both repos' visibility flip — both PRIVATE, so release downloads need a logged-in GitHub account); M3 (offline mutations) → M4 (screenshot upload) → M5 (DPAPI + installer polish).
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S217 — THE DESKTOP SYNC BUTTON (desktop v0.1.6; web docs-only @ v0.4.1.36)
 
 Task ID: S217 (single-agent session)
@@ -3425,10 +3349,6 @@ Stage Summary:
 
 
 ---
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session 218 — the publish + the auto-release lanes (2026-10-19)
 
 **The owner's ask, verbatim:** "commit and push and release new version, after every update auto-release on github please."
@@ -3444,10 +3364,6 @@ Stage Summary:
 **The auto-release lanes (the standing ask, wired + ready):** (1) desktop `.github/workflows/autorelease.yml` — every push to main that is not a release-bump commit, not already hand-tagged, and is the branch tip gets the NEXT patch cut automatically: the version files bumped in lockstep on a `chore(release): bump to X.Y.Z (auto-release)` commit (wails.json + versioninfo.json via jq, the desktop.yml placeholder + make-portable default + main.go stamp via sed), the annotated tag carrying the commit-range notes, pushed → the EXISTING tag lane builds + publishes. Three loop guards close the cycle. (2) this repo's `.github/workflows/release.yml` — package.json's version is the release truth; a NEW version cuts tag vX.Y.Z.W + a release whose notes are the project's own Changelogs row (docs pushes skip by paths-ignore). (3) the desktop.yml release job rewritten: the notes ride the annotated tag (read back via the pure-API call) — ONE mechanism for hand-cut AND auto-cut releases.
 
 **Owner-side next:** fix the Actions billing (Billing & plans) OR flip both repos public (the standing Q7 — standard runners free + login-free downloads) — then the lanes prove themselves on the very next push; dogfood v0.1.6 on Windows (sync flow → offline → mid-round reopen → the v0.1.5 theme surfaces → the v0.1.4 switcher → the v0.1.3 tray); the M0 §7a-7e go; M3 → M4 → M5.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session 219 — the public flip + the lanes' first live firings (2026-10-20)
 
 **The owner's ask, verbatim:** "Make the repo's public and continue your job."
@@ -3468,10 +3384,6 @@ Stage Summary:
 **The one honest red — the CI e2e shard-2 flake (diagnosed, NOT a product regression):** the ci job (the full unit/type/lint/build ladder) GREEN; e2e shard 1 GREEN; e2e shard 2: the s207 kanban-frame WIDTH geometry test failed ALL THREE shard runs tonight with three DIFFERENT offsets (frame.left = 10px, 57px, 15px — each attempt a different value breaking the exact-zero edge-to-edge pins) + the sprint-doc test's FIRST attempt hit the "Payments flow12.1" name-concatenation race twice (GREEN on the in-job retry both times — the suite's documented S196 race class; the first title-path catches after "the title never flaked in 40+ runs"). The same tree was FULLY e2e-green at 19:17 (run 39309699841); the traces prove the client sent perfect payloads (POST name clean; the autosave PATCH description-only by design), every CSS 200, every API 200, the correct rail-edge boot class — the breaks are runner-side render nondeterminism, not app bits. Same runner version + ubuntu-24.04 label on both sides; the rolling-image/Chromium drift theory is unproven from the outside. NO blind test patch this session — the S196-style flake-hunt round owns the fix (pin the runner image off the rolling label / re-harden the exact-pixel pins / hunt the sprint-doc title race at its source).
 
 **Owner-side next:** dogfood v0.1.7 on Windows (login-free download now); the M0 §7a-7e go; the e2e flake-hunt round; M3 → M4 → M5.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session 220 — the desktop sync-button visibility round (2026-10-20)
 
 **The owner's ask, verbatim:** "There is still No Sync button, I want a sync button on the header of app, next to sprints and labels, but colored. (fill colored) also sprints and labels need to be same size."
@@ -3487,10 +3399,6 @@ Stage Summary:
 **The release, zero hands:** the push fired the lane → v0.1.8-desktop cut (bump 25ff370, loop guard closed) → the free windows runner built + published (tag-lane run 38 green). Every asset re-downloaded + sha256-verified (installer 9,180,216B 75f4319a… · zip 7,533,252B e7ecbfe2… · the embedded exe 876da16b… MATCH); PE needles main.Version=0.1.8 + db-sync-cta + db-sync-btn-label.
 
 **Owner-side next:** dogfood v0.1.8 (login-free download; the colored Sync between Labels and the theme icon, the twins, the dark terracotta, the FA mirror); the M0 §7a-7e go; the e2e flake-hunt round; M3 offline mutations → M4 screenshot upload → M5 DPAPI + installer polish.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S221 — the desktop sign-out round (2026-10-20)
 
 **The owner's ask, verbatim:** "It must also have option of logout and enter with a new account."
@@ -3527,10 +3435,6 @@ Stage Summary:
 **The release, zero hands:** the push (8f91992) fired the lane → v0.1.10-desktop cut (the lockstep bump + the annotated tag with the owner ask verbatim) → the free windows runner built + published; every asset re-downloaded + sha256-verified against the release's own checksums.txt.
 
 **Owner-side next:** dogfood v0.1.10 on Windows (the title bar MERGES with the app in both looks; the theme flip + the tray submenu move the bar live; Win11 corners rounded — larger on 22H2+; maximize keeps sane corners; the frame still drags/resizes/snaps; X still hides to the tray); the M0 §7a-7e go; the e2e flake-hunt round; M3 offline mutations → M4 screenshot upload → M5 DPAPI + installer polish.
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S223 — the desktop new-project round (2026-10-20)
 
 **The owner's ask, verbatim:** "Add ability to define a new project, and get a kanban for it as well. this project then will be updated in hibana's cloudflare as a new project."
@@ -3552,10 +3456,6 @@ Stage Summary:
 **The release, zero hands:** the push (5696265) fired the desktop autorelease lane → v0.1.11-desktop cut (lockstep bump be77e26 + the annotated tag) → the free windows runner built + published; EVERY asset re-downloaded + sha256-verified against the release's own checksums.txt (installer 9,198,107B fe0c4d3c… OK · zip 7,546,446B a8d6979d… OK · the zip's embedded exe 3e2ea32e… MATCH) and the RELEASE exe PE-verified (main.Version=0.1.11 + WebRef=e6661c8 + every needle + the prior-round needles).
 
 **Owner-side next:** dogfood v0.1.11 on Windows (open the switcher → the accent "New project" row at its foot → name a project → Create → its fresh kanban boots right there; then check the web app: the SAME project is in hibana.ir's projects list — planning stage — and its board there shows the same empty columns; create a task in either place and the sync round carries it); the M0 §7a-7e go; the e2e flake-hunt round (the S219 shard-2 diagnosis); M3 (offline mutations — the upload step becomes REAL then, and the create joins the queue) → M4 (screenshot upload) → M5 (DPAPI + installer polish).
-> **Rotation (HLTH-27):** sessions older than the newest 4 live in
-> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
-> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
-
 ## Session S224 — the desktop refresh round (2026-10-20)
 
 **The owner's ask, verbatim:** "I tried something, deleted something from hibana, clicked sync on the app, but it didn't got deleted. it seems we need a refresh button."
@@ -4103,3 +4003,83 @@ contract-breaking "cleanups".
 **Next:** Phase 1 (S252) — the correctness & safety pack: BE-6 tag race, BE-7 sprint window
 order, BE-10 archive-done transaction, BE-9 double fetch, BE-2 bump loop, + the desktop
 WEB_VERSION one-liner (DT-1). No schema, no payload, no island changes.
+
+## Session S252 — Phase 1: the correctness & safety pack (2026-11-08)
+
+**The owner's ask, verbatim:** the §13 next-session prompt for Phase 1 (S252) of the
+owner-approved AUDIT-REMEDIATION-SPEC — "Execute Phase 1 EXACTLY (no schema change, no
+payload change, no island change)".
+
+**The five backend fixes, one commit each (the red-line ritual):**
+- **BE-6 + BE-12** (`da005ee5`): the ONE shared `findOrCreateTag(cfg, userId, name, color?)`
+  in devboard-helpers.ts — NOCASE find-first (oldest row wins on legacy exact-case twins) +
+  the H1 `INSERT … ON CONFLICT(user_id, name) DO UPDATE … RETURNING id` recipe — replacing
+  all three private copies (task-tags add, project-tags add, setTaskTags' create arm). The
+  double-click/queue-replay 500 and the "ui/ux next to UI/UX" fork are both dead. Response
+  shapes unchanged ({ok:true,id}, 201).
+- **BE-9** (`d44ecee7`): `assertSprintWindowOk` accepts optional pre-fetched siblings;
+  PATCH /api/sprints/:id passes the set it already fetched for the reopen-latest guard —
+  the duplicate sibling round trip on every dated PATCH is gone.
+- **BE-7** (`4130de38`, the P1): POST /sprints now validates the window BEFORE closing the
+  active sprint. The assert runs on the POST-CLOSE VIEW of the sibling set (the active
+  sprint's ended_at pre-stamped to its close point, one sibling fetch serving window+close,
+  findActiveSprint folded in) — verdicts byte-identical to the old post-close check, so the
+  success path is unchanged and only the failure path stops writing. A failed create no
+  longer leaves the active sprint permanently closed.
+- **BE-2** (`d1b7f83e`): the auto-name collision bump is ONE sibling-names query + a JS fold
+  (same lower(trim()) grammar, same 50-try bound, same 409 fallback) instead of up to 51
+  sequential sprintNameTaken round trips; the row count doubles as the old COUNT(*) base.
+- **BE-10 + BE-5a** (`393dd754`): archive-done is ONE cfg.db.transaction mirroring /finish
+  (snapshot INSERTs + the 99-id-chunked delete; reads stay outside per the Db convention) —
+  a mid-flow failure rolls the whole move back, so no more partial archive rows that poison
+  retries on the task-id PK. The link fetch filters SQL-side by the done-task predicate
+  (no over-fetch, no IN-list cap, global ORDER BY preserved) and the fold is Set-keyed.
+
+**Regression tests** (`65be8466`, `src/tests/s252-correctness-pack.test.ts`, 7 tests): (a)
+same-name ×2 + case-twin + the ON CONFLICT race path (a db wrapper that makes the NOCASE
+find miss — both requests take the INSERT path and still resolve to one id) across all
+three attach sites; (b) the bad-window create leaves the active sprint OPEN + the success
+path keeps the close-the-day-before geometry; (c) a poisoned archive row (the exact
+partial-archive residue the old flow could leave) makes archive-done 500 with NOTHING
+partial (tasks stay, no new archive rows) and a clean retry succeeds.
+
+**The honest CI record:** my first six pushes ran RED — the fn-shape gate flagged the three
+grown/moved devboard handlers (archive-done 63, POST /sprints 112, PATCH /sprints 108) —
+fixed by the FN-ALLOWLIST re-pins in `69281ba4` (moves + growth recorded, the established
+per-round doctrine; Phase 6's devboard split owns dissolving them). Both e2e shards were
+green on those same commits, so the failures were gate-only. Because `**.md`-only pushes
+skip CI by design, `69281ba4` itself never ran CI — the deploy chain rode the next non-md
+push (`5a303426`).
+
+**The e2e round:** full 510-test suite, four sequential foreground shards (the sandbox kills
+backgrounded runs — learned twice). ONE failure: s247 §24-6 (the dueDayLabel seam) —
+**proven pre-existing on 8118e608** (the pre-session worktree failed identically): the
+test's days-left used raw ms-ceil while the app renders the local-calendar-day difference,
+disagreeing by one day on any run between 00:00–12:00 UTC. De-flaked in `5a303426` by
+mirroring the app's localDayIdx derivation (test-only; the test's own comment documents this
+exact breakage class from S250). Final: 510/510 green.
+
+**Ladder:** `npm run verify` exit 0 — tsc strict, eslint 0 warnings, vitest **976/976**
+(969 + 7 new), prod build, portability, fn-shape (after the re-pins), import-boundaries;
+check-cache-bust PASS (backend-only round — no JS/CSS touched); i18n parity 1707/1707;
+precache within budget (+19 KB headroom); bundle-size PASS. No `node --check` targets
+(only TS touched). FA/RTL + EN/LTR + light/dark + 390px ride the e2e suite's own specs
+(viewport/fa-locale-guard/themes families all green).
+
+**Desktop DT-1** (hibana-desktop `8561b84b`): desktop.yml WEB_VERSION "0.4.1.43" →
+"0.4.1.44" (matching the 6dd40c0 pin / sync-island PIN_PACKAGE_VERSION) + the
+WEB_REF/WEB_VERSION-are-twins comment. The autorelease lane cut **v0.1.41-desktop** and the
+release notes now carry the RIGHT embedded web version ("hibana-source 6dd40c0
+(v0.4.1.44)") — verified against the published release. No re-pin needed (zero island
+change).
+
+**Version:** 0.4.1.44 → **0.4.1.45** (the round is user-facing bug fixes; the bump is the
+CI/CD/release carrier since the code commits' CI ran before the allowlist fix existed).
+
+**Live verification:** `scripts/live-s252-probe.mjs` (dev + prod) — the three flows on the
+test account inside a disposable probe project (soft-deleted after): tag add ×2 + case twin
+→ one id; bad-window create → 400 with the active sprint still OPEN + the clean-window
+geometry intact; archive-done → {archived:2} with the label snapshot riding along.
+
+**Next:** Phase 2 (S253) — Database health, migration 0067 (backup ritual FIRST, no
+exceptions).

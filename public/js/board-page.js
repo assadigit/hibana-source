@@ -1709,7 +1709,7 @@
         }
         const boot = async () => {
           const ok = await ensureLib()
-          if (!ok) return fail()
+          if (!ok) { await i18nReady; return fail() }
           // S237: the probe surface — window.HibanaBoard.focusState() reports the live
           // { enabled, focusedStatus, sheetStatus } triple (scripts/probe-focus.mjs
           // reads it; the desktop island ships this same controller verbatim).
@@ -1731,7 +1731,7 @@
               }
               if (!projectId) {
                 const list = await fetchProjects()
-                if (!list.length) return renderNoProjects()
+                if (!list.length) { await i18nReady; return renderNoProjects() }
                 projectId = list[0].id
               }
               // Canonicalize the bare entry URL (replaceState — no history entry): a
@@ -1740,15 +1740,22 @@
               u.searchParams.set('project', projectId)
               history.replaceState(null, '', u)
             } catch {
+              await i18nReady
               return fail()
             }
           }
           document.querySelector('[data-back-link]').href = '/project.html?id=' + projectId
           try {
-            if (preloaded) render()
-            else await reload()
+            // S254 (FE-8): the board GET and the i18n bootstrap run IN PARALLEL — the
+            // old wrapper awaited hibanaI18n.ready (the /api/auth/me round trip + the
+            // lazy FA dictionary fetch) BEFORE boot() even started the load, a serial
+            // waterfall on every cold visit. The first render still waits for BOTH:
+            // an FA user must never see an English flash (the S30 batch 5 rule).
+            if (preloaded) { await i18nReady; render() }
+            else { await Promise.all([B().load(projectId), i18nReady]); render() }
             recordBoard()
           } catch (err) {
+            await i18nReady
             if (err && err.status === 404) return gone()
             return fail()
           }
@@ -1762,12 +1769,17 @@
           if (openTask && B().findTask(openTask)) openTaskView(openTask) // S238: the deep link OPENS THE TASK (the view) — the editor stays behind ⋯ > Edit
           else if (addStatus) B().openEditor(null, { defaults: { status: addStatus }, onSaved: reload })
         }
-        // S30 batch 5 (FA-guard find): `ready` is a PROMISE (always truthy) — the old
-        // truthy-check booted BEFORE apply() resolved the language, so FA users got an
-        // English first render. Await it: it resolves AFTER the lazy FA dictionary
-        // lands (i18n.js's apply awaits ensureFaDict before resolving).
-        if (window.hibanaI18n && window.hibanaI18n.ready) window.hibanaI18n.ready.then(boot).catch(boot)
-        else document.addEventListener('hibana:i18n', boot, { once: true })
+        // S254 (FE-8): the i18n gate as a PROMISE — boot() runs IMMEDIATELY (the
+        // data fetches start the moment HibanaBoard exists, no i18n wait) and the
+        // first render awaits data + i18n TOGETHER. The .catch(() => {}) belt keeps
+        // the old .then(boot).catch(boot) resilience: a failed i18n bootstrap never
+        // kills the board — the English fallbacks carry it. (The S30 batch 5 rule
+        // stands: `ready` resolves only AFTER the lazy FA dictionary lands, so an
+        // awaited render can never flash English at an FA user.)
+        const i18nReady = (window.hibanaI18n && window.hibanaI18n.ready)
+          ? Promise.resolve(window.hibanaI18n.ready).catch(() => {})
+          : new Promise((res) => document.addEventListener('hibana:i18n', () => res(), { once: true }))
+        boot()
 
         // S205: the switcher popover is appended to <body> (positioning + stacking);
         // the page-lifecycle contract calls this on unmount so soft-navigations away

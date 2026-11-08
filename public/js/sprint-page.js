@@ -2233,24 +2233,34 @@
           document.getElementById('sp-board-link').href = '/kanban?project=' + projectId
           document.title = 'Sprints — Hibana'
           const ok = await ensureLib()
-          if (!ok) return fail()
+          if (!ok) { await i18nReady; return fail() }
           try {
-            await reload()
+            // S254 (FE-8, the board twin): the devboard GET starts IMMEDIATELY and
+            // the first render awaits data + hibanaI18n.ready TOGETHER — the old
+            // wrapper made the load wait out the /api/auth/me + FA-dictionary dance
+            // first (a serial waterfall on every cold visit; the render itself still
+            // needs the language, so BOTH are awaited — no English flash for FA).
+            await Promise.all([B().load(projectId), i18nReady])
+            render()
             document.getElementById('sp-title').textContent = B().state.project ? B().state.project.title : ''
             // S243 (Screen G's Settings entry): ?sprint=<id> deep-links the detail
             // panel open (the Kanban compact overview's Settings action targets it).
             const deep = qs.get('sprint')
             if (deep && B().findSprint(deep)) openSprintDetail(deep, 'settings')
           } catch (err) {
+            await i18nReady
             if (err && err.status === 404) return gone()
             fail()
           }
         }
-        // S30 batch 5 (FA-guard find): `ready` is a PROMISE (always truthy) — the old
-        // truthy-check booted BEFORE apply() resolved the language, so FA users got an
-        // English first render. Await it: it resolves AFTER the lazy FA dictionary
-        // lands (i18n.js's apply awaits ensureFaDict before resolving).
-        if (window.hibanaI18n && window.hibanaI18n.ready) window.hibanaI18n.ready.then(boot).catch(boot)
-        else document.addEventListener('hibana:i18n', boot, { once: true })
+        // S254 (FE-8): the i18n gate as a PROMISE — boot() runs IMMEDIATELY (the
+        // devboard GET rides out the moment HibanaBoard exists); the first render
+        // awaits it alongside the data. The .catch(() => {}) belt keeps the old
+        // .then(boot).catch(boot) resilience: a failed i18n bootstrap never kills the
+        // page — the English fallbacks carry it.
+        const i18nReady = (window.hibanaI18n && window.hibanaI18n.ready)
+          ? Promise.resolve(window.hibanaI18n.ready).catch(() => {})
+          : new Promise((res) => document.addEventListener('hibana:i18n', () => res(), { once: true }))
+        boot()
       },
     })

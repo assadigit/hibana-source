@@ -285,14 +285,17 @@ test('the devboard client NEVER touches the HTTP cache (the live-hang fix — mu
       return orig.apply(this, arguments)
     }
   })
-  // quick-add a task (Enter in the sidebar row) — the create + reload round-trip
+  // quick-add a task (Enter in the sidebar row) — S254 (FE-1): the create is ONE
+  // no-store POST; the re-render rides the merged state (the old flow's second
+  // call — the full board GET reload — is RETIRED with the merge layer; the
+  // no-store contract itself is unchanged and still pinned here)
   await page.click('[data-cat-toggle="none"]')
   await page.waitForTimeout(300)
   await page.fill('[data-quickadd="none"]', 'no-store witness')
   await page.press('[data-quickadd="none"]', 'Enter')
   await page.waitForTimeout(1500)
   const calls = await page.evaluate(() => window.__apiCalls)
-  expect(calls.length).toBeGreaterThanOrEqual(2) // at least one GET devboard + one POST devtasks
+  expect(calls.length).toBeGreaterThanOrEqual(1) // the POST devtasks (the FE-1 merge renders from state — no second GET)
   for (const c of calls) expect(c.cache, JSON.stringify(c)).toBe('no-store')
   // and the reload landed — the new task is IN the re-rendered sidebar (the list
   // collapses again after a reload — presence, not visibility, is the contract)

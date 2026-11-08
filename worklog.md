@@ -560,3 +560,83 @@ contract-breaking "cleanups".
 **Next:** Phase 1 (S252) — the correctness & safety pack: BE-6 tag race, BE-7 sprint window
 order, BE-10 archive-done transaction, BE-9 double fetch, BE-2 bump loop, + the desktop
 WEB_VERSION one-liner (DT-1). No schema, no payload, no island changes.
+
+## Session S252 — Phase 1: the correctness & safety pack (2026-11-08)
+
+**The owner's ask, verbatim:** the §13 next-session prompt for Phase 1 (S252) of the
+owner-approved AUDIT-REMEDIATION-SPEC — "Execute Phase 1 EXACTLY (no schema change, no
+payload change, no island change)".
+
+**The five backend fixes, one commit each (the red-line ritual):**
+- **BE-6 + BE-12** (`da005ee5`): the ONE shared `findOrCreateTag(cfg, userId, name, color?)`
+  in devboard-helpers.ts — NOCASE find-first (oldest row wins on legacy exact-case twins) +
+  the H1 `INSERT … ON CONFLICT(user_id, name) DO UPDATE … RETURNING id` recipe — replacing
+  all three private copies (task-tags add, project-tags add, setTaskTags' create arm). The
+  double-click/queue-replay 500 and the "ui/ux next to UI/UX" fork are both dead. Response
+  shapes unchanged ({ok:true,id}, 201).
+- **BE-9** (`d44ecee7`): `assertSprintWindowOk` accepts optional pre-fetched siblings;
+  PATCH /api/sprints/:id passes the set it already fetched for the reopen-latest guard —
+  the duplicate sibling round trip on every dated PATCH is gone.
+- **BE-7** (`4130de38`, the P1): POST /sprints now validates the window BEFORE closing the
+  active sprint. The assert runs on the POST-CLOSE VIEW of the sibling set (the active
+  sprint's ended_at pre-stamped to its close point, one sibling fetch serving window+close,
+  findActiveSprint folded in) — verdicts byte-identical to the old post-close check, so the
+  success path is unchanged and only the failure path stops writing. A failed create no
+  longer leaves the active sprint permanently closed.
+- **BE-2** (`d1b7f83e`): the auto-name collision bump is ONE sibling-names query + a JS fold
+  (same lower(trim()) grammar, same 50-try bound, same 409 fallback) instead of up to 51
+  sequential sprintNameTaken round trips; the row count doubles as the old COUNT(*) base.
+- **BE-10 + BE-5a** (`393dd754`): archive-done is ONE cfg.db.transaction mirroring /finish
+  (snapshot INSERTs + the 99-id-chunked delete; reads stay outside per the Db convention) —
+  a mid-flow failure rolls the whole move back, so no more partial archive rows that poison
+  retries on the task-id PK. The link fetch filters SQL-side by the done-task predicate
+  (no over-fetch, no IN-list cap, global ORDER BY preserved) and the fold is Set-keyed.
+
+**Regression tests** (`65be8466`, `src/tests/s252-correctness-pack.test.ts`, 7 tests): (a)
+same-name ×2 + case-twin + the ON CONFLICT race path (a db wrapper that makes the NOCASE
+find miss — both requests take the INSERT path and still resolve to one id) across all
+three attach sites; (b) the bad-window create leaves the active sprint OPEN + the success
+path keeps the close-the-day-before geometry; (c) a poisoned archive row (the exact
+partial-archive residue the old flow could leave) makes archive-done 500 with NOTHING
+partial (tasks stay, no new archive rows) and a clean retry succeeds.
+
+**The honest CI record:** my first six pushes ran RED — the fn-shape gate flagged the three
+grown/moved devboard handlers (archive-done 63, POST /sprints 112, PATCH /sprints 108) —
+fixed by the FN-ALLOWLIST re-pins in `69281ba4` (moves + growth recorded, the established
+per-round doctrine; Phase 6's devboard split owns dissolving them). Both e2e shards were
+green on those same commits, so the failures were gate-only. Because `**.md`-only pushes
+skip CI by design, `69281ba4` itself never ran CI — the deploy chain rode the next non-md
+push (`5a303426`).
+
+**The e2e round:** full 510-test suite, four sequential foreground shards (the sandbox kills
+backgrounded runs — learned twice). ONE failure: s247 §24-6 (the dueDayLabel seam) —
+**proven pre-existing on 8118e608** (the pre-session worktree failed identically): the
+test's days-left used raw ms-ceil while the app renders the local-calendar-day difference,
+disagreeing by one day on any run between 00:00–12:00 UTC. De-flaked in `5a303426` by
+mirroring the app's localDayIdx derivation (test-only; the test's own comment documents this
+exact breakage class from S250). Final: 510/510 green.
+
+**Ladder:** `npm run verify` exit 0 — tsc strict, eslint 0 warnings, vitest **976/976**
+(969 + 7 new), prod build, portability, fn-shape (after the re-pins), import-boundaries;
+check-cache-bust PASS (backend-only round — no JS/CSS touched); i18n parity 1707/1707;
+precache within budget (+19 KB headroom); bundle-size PASS. No `node --check` targets
+(only TS touched). FA/RTL + EN/LTR + light/dark + 390px ride the e2e suite's own specs
+(viewport/fa-locale-guard/themes families all green).
+
+**Desktop DT-1** (hibana-desktop `8561b84b`): desktop.yml WEB_VERSION "0.4.1.43" →
+"0.4.1.44" (matching the 6dd40c0 pin / sync-island PIN_PACKAGE_VERSION) + the
+WEB_REF/WEB_VERSION-are-twins comment. The autorelease lane cut **v0.1.41-desktop** and the
+release notes now carry the RIGHT embedded web version ("hibana-source 6dd40c0
+(v0.4.1.44)") — verified against the published release. No re-pin needed (zero island
+change).
+
+**Version:** 0.4.1.44 → **0.4.1.45** (the round is user-facing bug fixes; the bump is the
+CI/CD/release carrier since the code commits' CI ran before the allowlist fix existed).
+
+**Live verification:** `scripts/live-s252-probe.mjs` (dev + prod) — the three flows on the
+test account inside a disposable probe project (soft-deleted after): tag add ×2 + case twin
+→ one id; bad-window create → 400 with the active sprint still OPEN + the clean-window
+geometry intact; archive-done → {archived:2} with the label snapshot riding along.
+
+**Next:** Phase 2 (S253) — Database health, migration 0067 (backup ritual FIRST, no
+exceptions).

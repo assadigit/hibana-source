@@ -4585,3 +4585,49 @@ rewriting published history — and is preserved locally on branch
 `s256-parallel-superseded` for reference. The shipped design stands.
 
 **Next:** unchanged — Phase 6 (S257), Backend modularization.
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session S256 (verification pass) — the prompt's third send, re-verified (2026-11-08)
+
+The owner's Phase 5 §13 prompt arrived a THIRD time, after the phase was already
+executed and closed (`836cc18e`→`6db3ae94`, v0.4.1.49 live), supplemented
+(`b2bfea2c` — the authed live visual matrix dev 67/67 + prod 67/67, the zip, the
+healthcheck ping via the real management-API URL, the Telegram notify), and
+desktop-re-pinned (v0.1.50, ALL 14 probes; v0.1.51 rode the worklog push — the
+same island). Correct behavior per the S253 precedent: **RE-VERIFY, never
+re-execute** — the bundles are live on both workers and re-running a closed round
+would churn settled budgets, carriers, and releases for nothing. The re-check,
+all green in this session:
+
+- **Repos:** fresh clones, local == origin/main on both (web `b2bfea2c`, desktop
+  `d024400`), clean trees; docs complete and consistent (worklog S256 +
+  supplement, Changelogs row 256, spec §14 DONE row).
+- **Live carriers, BOTH workers (fresh, unauthed):** health ok / db up /
+  `schema_version 66`; sw.js `hibana-v463`; `dist/bundles.json` serving both
+  ordered part lists; each of the four Projects pages carries exactly ONE bundle
+  link (board+sprint → `board-bundle.41b1eacb.css`, projects+project →
+  `projects-bundle.253b3917.css`); both bundles 200 immutable with IDENTICAL
+  hashes across dev+prod; the concatenation order proofs hold on the live bytes
+  (rtl's rules at board-bundle's tail — its last `dir=rtl` at 99.99% of the
+  file; magic-wand after rtl in projects-bundle).
+- **Desktop:** PIN_REF `6db3ae94` / PIN_PACKAGE_VERSION `0.4.1.49`; desktop.yml
+  WEB_REF+WEB_VERSION twins together; releases v0.1.50 + v0.1.51 both carry
+  "island @ 6db3ae94" with the full asset chain (checksums.txt + installer +
+  portable zip).
+- **The lanes:** automated backup lane fresh (latest snapshot
+  `2026-11-08T15-23-25Z`, ~5 h old — the 21:23 UTC tick had not fired yet);
+  healthchecks.io: all three checks UP ("Hibana" last ping = the supplement's
+  20:18:37Z); dev D1 residue: 0 probe users, 0 orphan archives (the supplement's
+  purge held).
+
+This pass then re-delivered the close ritual's artifacts for THIS sandbox (the
+previous sandbox's copies are not reachable from here): the per-version zip
+(`hibana.0.4.1.49.zip` → the sandbox download folder, wired-HTML build,
+integrity OK), a fresh healthcheck ping (the real per-check URL from the
+management API), and the Telegram notify to the owner chat.
+
+**Next:** unchanged — Phase 6 (S257), Backend modularization (the devboard
+split, BE-11/13/14/15/16/17, FN-ALLOWLIST re-pins) — zero route-path changes,
+desktop no-op by design.

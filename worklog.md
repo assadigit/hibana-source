@@ -13,49 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S256 (verification pass) — the prompt's third send, re-verified (2026-11-08)
-
-The owner's Phase 5 §13 prompt arrived a THIRD time, after the phase was already
-executed and closed (`836cc18e`→`6db3ae94`, v0.4.1.49 live), supplemented
-(`b2bfea2c` — the authed live visual matrix dev 67/67 + prod 67/67, the zip, the
-healthcheck ping via the real management-API URL, the Telegram notify), and
-desktop-re-pinned (v0.1.50, ALL 14 probes; v0.1.51 rode the worklog push — the
-same island). Correct behavior per the S253 precedent: **RE-VERIFY, never
-re-execute** — the bundles are live on both workers and re-running a closed round
-would churn settled budgets, carriers, and releases for nothing. The re-check,
-all green in this session:
-
-- **Repos:** fresh clones, local == origin/main on both (web `b2bfea2c`, desktop
-  `d024400`), clean trees; docs complete and consistent (worklog S256 +
-  supplement, Changelogs row 256, spec §14 DONE row).
-- **Live carriers, BOTH workers (fresh, unauthed):** health ok / db up /
-  `schema_version 66`; sw.js `hibana-v463`; `dist/bundles.json` serving both
-  ordered part lists; each of the four Projects pages carries exactly ONE bundle
-  link (board+sprint → `board-bundle.41b1eacb.css`, projects+project →
-  `projects-bundle.253b3917.css`); both bundles 200 immutable with IDENTICAL
-  hashes across dev+prod; the concatenation order proofs hold on the live bytes
-  (rtl's rules at board-bundle's tail — its last `dir=rtl` at 99.99% of the
-  file; magic-wand after rtl in projects-bundle).
-- **Desktop:** PIN_REF `6db3ae94` / PIN_PACKAGE_VERSION `0.4.1.49`; desktop.yml
-  WEB_REF+WEB_VERSION twins together; releases v0.1.50 + v0.1.51 both carry
-  "island @ 6db3ae94" with the full asset chain (checksums.txt + installer +
-  portable zip).
-- **The lanes:** automated backup lane fresh (latest snapshot
-  `2026-11-08T15-23-25Z`, ~5 h old — the 21:23 UTC tick had not fired yet);
-  healthchecks.io: all three checks UP ("Hibana" last ping = the supplement's
-  20:18:37Z); dev D1 residue: 0 probe users, 0 orphan archives (the supplement's
-  purge held).
-
-This pass then re-delivered the close ritual's artifacts for THIS sandbox (the
-previous sandbox's copies are not reachable from here): the per-version zip
-(`hibana.0.4.1.49.zip` → the sandbox download folder, wired-HTML build,
-integrity OK), a fresh healthcheck ping (the real per-check URL from the
-management API), and the Telegram notify to the owner chat.
-
-**Next:** unchanged — Phase 6 (S257), Backend modularization (the devboard
-split, BE-11/13/14/15/16/17, FN-ALLOWLIST re-pins) — zero route-path changes,
-desktop no-op by design.
-
 ## Session S257 — Phase 6: Backend modularization (2026-11-08)
 
 **The owner's ask, verbatim:** the §13 next-session prompt for Phase 6 (S257) of the
@@ -292,3 +249,107 @@ card — the port PROVEN live, not just shipped). Pushed `7f2a23d` →
 autorelease cut **v0.1.52-desktop**.
 
 **Next:** Phase 8 (S259) — the close-out & full verification round (§11).
+## Session S259 — Phase 8: Close-out & full verification (2026-11-09)
+
+**The phase:** §11 — prove the whole chain end-to-end after seven phases of change.
+Zero code changes in scope; a real regression DID surface and was recorded, not
+fixed (per the session's red line — the fix prompt goes to the owner below).
+
+**1. The §12.1 backup ritual, one final time — ALL GREEN:**
+- Fresh full SQL dumps of BOTH D1s (`scripts/d1-dump-tables.mjs`) →
+  `/home/z/hibana-backups/s259-closeout-{dev,prod}-20261109.sql` (+ manifests;
+  73 real tables, the 7 FTS virtuals excluded per the rebuild-from-triggers
+  classification). **Restore-verified:** both dumps load clean with
+  `PRAGMA foreign_keys=OFF`, `integrity_check = ok`, row counts recorded (prod:
+  users 6 · projects 46 · sprints 13 · strategies 3 · dev_tasks 75 ·
+  project_archives 148 · screenshots 20; dev: users 6 · projects 7 — the test
+  bed, probe-clean). Raw dumps carry sessions + hashes — local-only, never
+  committed (the backups/ ignore holds).
+- **Time-travel bookmarks:** prod `00002195-…87f2f293…` + dev
+  `0000120b-…cd231515…` (both schema 66; rows appended to Changelogs §9).
+- **The automated lane is flowing:** hibana-safe `backups/` holds 120
+  snapshots, latest `snapshot-2026-11-09T09-23-27-470Z.json` — 4.2 h old
+  (< the 7 h freshness bar; the 09:17 UTC cron tick landed at 09:23).
+
+**2. The restore drill — the red-line insurance policy, recorded:**
+- `npm run drill` **PASS** in this sandbox: Part A loud-skip (the newest
+  snapshot is AES-GCM; `BACKUP_ENCRYPTION_KEY` is owner-held by design — the
+  S201 baseline behavior) but the GitHub lane itself verified (120 snapshots
+  listed, newest identified + downloaded); Part B the synthetic round-trip
+  9/9 (export → restore → FTS rebuild, users untouched, rule-8 clean).
+- `npm run drill:planb` **PARTIAL PASS**: steps 1–3 green on the 2026-09-08
+  document (D1 log row → Telegram getFile → sha256 match → HIBENC1 magic);
+  steps 4–5 loud-skip on the same owner-key gate. Same as the recorded S201
+  baseline; the owner-side residue (run both drills once with the key, on the
+  owner machine — credentials.md) still stands.
+
+**3. The full-system regression — `scripts/live-s259-probe.mjs` (this
+session's instrument; the S25x probe pattern):** the REAL login page → the
+REAL session → the whole Projects journey through the REAL UI —
+**dev 57/58** (the seeded probe user, PURGED after: 0 users / 0 orphan
+archives, D1-REST-verified) → **prod 57/58** (the owner's test account on
+hibana.ir; language restored to its original; probe project trashed).
+The one FAIL on both workers is THE S259 FINDING (below). Everything else:
+carriers (health ok / schema 66 / sw v464 on both workers); the user journey
+(projects overview + cards view → project detail → kanban create via the
+editor / tag via the editor / move via the FE-18 Move-to / done / archive-done
+with the confirm + the restorable snapshot row → the sprint round: strategy
+create → sprint WITH strategy → sidebar quick-add joins the draft → start →
+task done on the timeline dot (the ✓) → finish (the exact-counts modal) →
+strategy complete → draft delete through the exact-counts modal); the
+Phase-3/4/5 behaviors re-proven on both workers (the repaint contracts: the
+editor-create's ONE LEAN reload — the documented S254 design; EDIT/MOVE/DONE
+zero-refetch repaints; the quick-add ONE POST / ZERO GET merge; BE-3 lean
+payload `?lean=1` on both surfaces + the default contract intact; BE-25 the
+stamp ETag round — matching If-None-Match → 304 empty, lean/default never
+cross-304, a mutation moves the stamp; FE-5 exactly 4 stylesheet requests on
+all four pages); the {en,fa} × {light,claude-dark} matrix on /kanban +
+/sprint + the 390px legs — **ZERO page errors / ZERO console errors on the
+whole journey, both workers**.
+
+**THE S259 FINDING (a real, user-visible regression — RECORDED, NOT FIXED
+per the session's red line):** adding a tag to an EXISTING task through the
+editor (the `[data-db-tag-in]` + Enter round — an immediate `addTaskTag`
+POST, 201, the data is SAFE server-side and every other surface sees it after
+a reload) no longer shows the chip on the CARD until the next reload.
+Root cause: Phase 3's repaint optimization (FE-1) — `addTaskTag`/`removeTaskTag`
+merge into the editor's draft but never into `state.tasks[].tags`, and the
+post-save repaint renders from state; pre-S254 the save's full `reload()`
+refetched the tags so the chip appeared. The remove path (✕ in the editor)
+leaves a STALE chip the same way. Class: FE-1's merge contract missed the
+editor's immediate tag add/remove round. Reproducible on both workers;
+recorded as a DEBT.md row + the spec §14 note + the fix prompt handed to the
+owner (a ~1-line merge fix + an e2e pin; the probe already asserts both
+halves — the FAIL line is the regression ticket).
+
+**4. The desktop half (≥ v0.1.52 — verified to this sandbox's limit):** the
+GitHub release lane: **v0.1.53-desktop** published 2026-11-09T12:57:56Z
+(island @ 2f3aac14 = web v0.4.1.51; checksums.txt + installer + portable zip)
+— the auto-release that rode the S258 close's worklog push; the update path
+itself PROVEN by **probe-update** (the full round on the real island bytes:
+the honest no-update default, the pill, the modal, the live apply + progress
++ restart panel, the failure verdicts, the FA/RTL dark mirror, reduced
+motion). **ALL 14 PROBES GREEN** on the real generated island bytes: login /
+logout / newproject / **refresh (the sync round — the owner's exact scenario:
+the server-side deletion lands after ONE Refresh; the sync panel's pulled>0
+facts + the pulled=0 no-op honesty)** / **sprint + sprintdeadline (the sprint
+page with strategies)** / view (the S258 focusTrap legs) / settings / labels /
+focus / completefacts / soundfx / uiredesign / update.
+`sync-island.mjs --check` OK — 58 files under frontend/dist byte-identical to
+island.checksums.json (pin 2f3aac14 @ v0.4.1.51). Honest limit: this Linux
+sandbox cannot boot the Windows Wails app itself — the probes sit at the exact
+Wails boundary (the DT-2 mandate: the only browser-level desktop gate), and
+the release lane + auto-update round are verified end-to-end above.
+
+**5. The docs sweep:** Changelogs row 259 + §1 chain rotated (the §1 counts
+re-checked current: vitest 1003/1003 · i18n 1711/1711 · sw v464 · schema 66 /
+0067); this worklog rotated to the newest 4 (S259 + S258 + the S257 pair; the
+S256 verification pass archived); DEBT.md gains the S259 finding row;
+API-AND-SYNC-CONTRACT.md verified CURRENT (S255's lean/304 + FE-16 +
+S258's clear-done/outbox verdict all present — Phase 8 changes no API
+surface); the spec's §14 marked COMPLETE with the Phase-8 row.
+
+**Next:** the plan is FINISHED. The one open item is the S259 finding — the
+fix prompt is in the final report (a micro-session: merge the tag outcome
+into state + the e2e pin; board + project pages both; then the standard
+ladder + re-pin + release).

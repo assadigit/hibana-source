@@ -50,9 +50,25 @@ const main = async () => {
   check('(A) schema_version is 66', Number(health?.schema_version) === 66, `schema_version=${health?.schema_version}`)
   const sw = await fetch(`${URL_BASE}/sw.js`).then((r) => r.text()).catch(() => '')
   check('(A) sw.js carries hibana-v464', sw.includes('"hibana-v464"'))
-  const boardHtml = await fetch(`${URL_BASE}/board.html`).then((r) => r.text()).catch(() => '')
-  check('(A) board.html links the ONE bundle at v2 (the round moved it)', boardHtml.includes('/css/board-bundle.css?v=2') && !/\/css\/devboard\.css\?v=/.test(boardHtml))
-  check('(A) board.html carries the round\'s script carriers (app v222, board-page v38, devboard v40)', boardHtml.includes('/js/app.js?v=222') && boardHtml.includes('/js/board-page.js?v=38') && boardHtml.includes('/js/devboard.js?v=40'))
+  if (target === 'local') {
+    // the canonical (unwired) tree: the round's ?v= carriers are readable here
+    const boardHtml = await fetch(`${URL_BASE}/board.html`).then((r) => r.text()).catch(() => '')
+    check('(A) board.html links the ONE bundle at v2 (the round moved it)', boardHtml.includes('/css/board-bundle.css?v=2') && !/\/css\/devboard\.css\?v=/.test(boardHtml))
+    check('(A) board.html carries the round\'s script carriers (app v222, board-page v38, devboard v40)', boardHtml.includes('/js/app.js?v=222') && boardHtml.includes('/js/board-page.js?v=38') && boardHtml.includes('/js/devboard.js?v=40'))
+  } else {
+    // the WIRED form (deploy runs --wire-html): the hashed /dist links + the
+    // round's own BYTES live in the served bundle/app — the real "the round is
+    // deployed" proof on the workers.
+    const boardHtml = await fetch(`${URL_BASE}/board.html`).then((r) => r.text()).catch(() => '')
+    const bundleLinks = [...boardHtml.matchAll(/href="(\/dist\/board-bundle\.[a-f0-9]+\.css)"/g)].map((m) => m[1])
+    check('(A) board.html links exactly ONE hashed board-bundle (the wired form)', bundleLinks.length === 1, bundleLinks.join(' '))
+    const appLink = [...boardHtml.matchAll(/src="(\/dist\/app\.[a-f0-9]+\.js)"/g)].map((m) => m[1])[0]
+    check('(A) board.html links the hashed app bundle', Boolean(appLink), appLink || 'none')
+    const bundleBytes = bundleLinks[0] ? await fetch(`${URL_BASE}${bundleLinks[0]}`).then((r) => r.text()).catch(() => '') : ''
+    check('(A) the served bundle carries the round\'s CSS (FE-9 strip + FE-18 submenu)', bundleBytes.includes('.sp-filter-strip') && bundleBytes.includes('.db-move-submenu'), `${(bundleBytes.length / 1024).toFixed(0)}KB`)
+    const appBytes = appLink ? await fetch(`${URL_BASE}${appLink}`).then((r) => r.text()).catch(() => '') : ''
+    check('(A) the served app.js carries the round\'s focus-trap helper', appBytes.includes('focusTrap'), `${(appBytes.length / 1024).toFixed(0)}KB`)
+  }
 
   // ---------- the browser context (the request API rides the cookie jar) ----------
   const browser = await chromium.launch()

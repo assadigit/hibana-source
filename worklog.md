@@ -13,98 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S257 — Phase 6: Backend modularization (2026-11-08)
-
-**The owner's ask, verbatim:** the §13 next-session prompt for Phase 6 (S257) of the
-owner-approved AUDIT-REMEDIATION-SPEC — the behavior-neutral devboard.ts split,
-executed EXACTLY per §9, with the atomic same-change obligations, the full §12.2
-ladder, the dev→smoke→prod→smoke deploy round, the desktop no-op noted per §0.5,
-BE-20 explicitly backlog, and the §12.4 close.
-
-**Anchor re-verification (the spec's own warning):** the spec was written at
-`71808075` (devboard.ts 1,337 ln); phases 1–5 landed since — HEAD `d0d95a8f`
-carried devboard.ts at **1,511 ln** and **33 endpoint registrations** (the spec's
-"31" pre-dates S255's `GET /api/sprints/:id/doc`; at the spec's own commit the file
-had 32 — the "31" was a pre-existing minor miscount, honestly recorded). The FN
-pins had also drifted: **5** devboard.ts pins (spec said four) + the S253-born
-archive-done pin, plus the helpers' setTaskTags. All re-verified before editing.
-
-**The split (commit `e7a2a91d`):** `src/routes/devboard.ts` DELETED, carved by
-feature into `src/routes/devboard/{index,schemas,board,tasks,sprints,strategies,
-archives,misc}.ts` — all 33 paths byte-identical, mounted at `/` via `app.route`,
-`app.ts`'s `import … from './routes/devboard'` resolves to the new index
-**untouched**. `devboard-helpers.ts` stays the shared domain layer (its 3
-importers + the s241 test import unchanged). The dedups in the same atomic change:
-- **BE-11** `categoriesForProject` → `lib/categories.ts` (the byte-identical SQL
-  the board GET + the detail pool each carried — diffed before extraction).
-- **BE-13** the reorderSchema name collision dissolves: `devtaskReorderSchema`
-  (devboard/schemas.ts) vs `projectReorderSchema` (validation/schemas.ts; the one
-  importer re-keyed). Quicknotes'/sadhana's own same-named schemas are different
-  findings, untouched (out of the audit's flagged pair).
-- **BE-14** `buildUpdate()` — the ×4 SET-builder (devtasks PATCH loop + the two
-  sprint PATCH arms ride it; **projects PATCH's loop keeps its own shape**: its
-  undefined→null belt is different grammar from the skip-undefined entries loop —
-  forcing one shape would change belt behavior; documented at the helper).
-- **BE-15** `assertNoActiveSibling` + `assertLatestSprint` → devboard-helpers.ts
-  (the ×4/×2 verbatim guards; Response-returning, byte-identical verdicts).
-- **BE-16** `touchProject` (the ×18 project-stamp — the byte-identical
-  `cfg.db.execute` shape rides the helper at 15 sites: devboard ×9, core/media ×3,
-  core/links ×2, core/hurdles ×1; hurdles' two queued `tx.sql` sites + module.ts's
-  two user-scoped variants keep their own statement, documented) + the
-  rate-limit body ×2 + glance query ×2 folds (local helpers in projects/index.ts).
-- **The carves:** PATCH-sprint's 127-line FN pin DISSOLVES (the handler is a thin
-  dispatcher + `patchDraftSprint` / `startedSprintSets` / `patchStartedSprint`,
-  each under the bar — the spec's own ask); archive-done's fold rides archives.ts's
-  `foldTagSnapshots` (the SHARED snapshot builder /finish uses too) and its
-  63-line pin dissolves. **FN pins: 6 → 4** (devboard.ts's 5 → board 102 /
-  tasks 73 / sprints 143; setTaskTags stays by design; 2 dissolved) — recorded
-  before/after. FILE-ALLOWLIST: the sprints.ts row (556 ln, the one module over
-  ~400) replaces the retired monolith row.
-- **The two documented test read-target updates** (the ONLY test edits):
-  acceptance-s247's contract-mirror block reads the new modules; sprint-ui-s243's
-  archives twin reads archives.ts. Every behavioral test UNTOUCHED — proven by the
-  suite.
-
-**The ladder (all green, in order):** tsc strict → eslint 0 → vitest **998/998** →
-prod build → portability → fn-shape (PASS, pins re-keyed) → boundaries →
-`node --check` on every moved/touched file (Node 24 type-stripping — verified
-genuine: a broken temp file exits 1) → cache-bust + i18n 1707/1707 + precache +
-bundle-size + css-bundles + dist-wiring → workers-runtime smoke (PBKDF2 + login +
-render on the real Workers runtime) → **e2e 510/510, zero flakes** (24.5 min, the
-Playwright browser installed fresh in this sandbox).
-
-**Live (the §9.6 round):** push `e7a2a91d` → CI green → CD deployed dev AND prod
-(its own dev probe gates the prod step). The new `scripts/live-s257-probe.mjs`
-(the S255 pattern): a **63-check smoke** over ALL six modules — (A) health ok +
-schema 66 + sw v463 unchanged, (B) the eight-key board payload + lean + the
-304 stamp round-trip, (C) task create/labels/deps family (idempotent/self/cycle)/
-tag add-remove/PATCH-done/reorder/archive-done, (D) the paged archives + restore-
-labeled + delete, (E) the FULL sprint lifecycle (draft arm + dates-rejection belt
-→ start → started arm: extend→closed, reopen via null end → the one-active 409 on
-a second draft's start → pause → resume → finish → the completed-sprint DELETE
-refusal), (F) strategies (create/PATCH/case-twin 409/assign/completion-guard 409/
-complete-after-pause/delete), (G) the category quick-add (new + case-insensitive
-reuse), backlog docs, project tags, the htmlx ping, (H) the browser boots on
-/kanban + /sprint.html (one lean GET each, zero page errors). **Local rehearsal
-63/63 → dev 63/63 (the seeded probe user, purged after: 0 users, 0 orphan
-archives) → prod 63/63 (the test account; probe project soft-deleted)**. Prod
-error_log 0 rows since the deploy.
-
-**Desktop: NO-OP by design (§0.5/§9.7)** — zero island files touched (no
-public/js, public/css, or HTML change in the diff; the desktop bridge is
-path-based and every path is byte-identical; per-path ETags ride the version
-stamp, also unchanged). The desktop repo received no commit; the island pin
-stays `6db3ae94` @ web v0.4.1.49 — noted here as the phase's explicit written
-parity record.
-
-**BE-20 (detailHtml carve-up): stays backlog** per §9.8 — not attempted.
-
-**Version:** 0.4.1.49 → **0.4.1.50**. Commit: `e7a2a91d` + this close.
-
-**Next:** Phase 7 (S258) — UI/UX polish (FE-6 focus trap, FE-9 the strategy
-filter strip, FE-11 scoped clear-done, FE-17 sidebar state, FE-18 keyboard lane
-move) — an island round → the desktop re-pin + release.
-
 ## Session S257 (verification pass) — the re-sent prompt's round, re-verified (2026-11-09)
 
 The owner's Phase 6 §13 prompt arrived AGAIN, after the phase was already executed
@@ -353,3 +261,69 @@ surface); the spec's §14 marked COMPLETE with the Phase-8 row.
 fix prompt is in the final report (a micro-session: merge the tag outcome
 into state + the e2e pin; board + project pages both; then the standard
 ladder + re-pin + release).
+
+## Session S260 — Phase 8's follow-up: the S259 finding's micro-fix (2026-11-09)
+
+**The round:** the Phase-8 row's named follow-up — the micro-session S259's
+final report prompted (the ~1-line merge + an e2e pin, then the standard
+ladder + re-pin + release). One real regression in scope, fixed at its root
+and closed end to end: fix → ladder → deploy → probes → release → the desktop
+re-pin → its release → this close.
+
+**1. The fix (`04022e84`):** devboard.js's editor tag Enter/✕ handlers now
+merge into `state.tasks[].tags` BESIDE the editor draft — the immediate
+addTaskTag POST pushes the returned id into the found task's tags, the ✕ path
+splices it out — so Phase 3's post-save repaint (FE-1's zero-refetch render,
+which reads from state) paints the card chip in the same beat. Pre-fix: the
+chip only appeared after the next reload, and the ✕ path left a STALE chip.
+ONE merge in the shared state closes every state-rendering surface — the
+/kanban board lane repaint + the /sprint page's pure render (board + project
+pages share the same devboard state). Carried in the same atomic change: the
+e2e pin `e2e/s260-tag-edit-merge.spec.ts` (3 legs — add/remove/cancel, each
+asserting zero-refetch), the full cache-bust choreography (devboard.js v41
+×3 pages + ×3 injector literals, sw **hibana-v465**), the 8 vitest carrier
+re-pins, and the s259 probe's ticket line re-armed as the regression guard.
+
+**2. The ladder GREEN, in order:** verify (tsc → eslint 0 → vitest
+**1003/1003** → prod build → portability → fn-shape → boundaries) +
+cache-bust + i18n **1711/1711** + precache + bundle-size + `node --check`
+×5 + e2e **518/518 as 6 sequential shards (90+86+89+81+89+83), ZERO
+flakes** — the 3 new s260 tests green in shard 6 — + the workers smoke.
+
+**3. Deploy + live probes — and THE PROBE'S OWN B4 CHECK WAS BROKEN BY
+CONSTRUCTION:** pushed `04022e84` → CI ~11 m green → CD both workers, the
+sw v465 flip 20:42Z. The first live probes read **57/58 on BOTH workers** —
+with the fix deployed and the e2e green. The diagnosis (a headless repro):
+the probe's own B4 chip check fed Playwright's `:has-text()` to native
+`document.querySelector` → SyntaxError → `.catch(() => false)` → a PERMANENT
+FAIL — the check had NEVER once run green (at S259 close it fired "the
+finding" while the real regression ALSO existed — both true at once). The
+probe fix `b4c500be`: the e2e twin's locator contract (auto-retry 5 s).
+Re-run: **dev 58/58 + prod 58/58 — (B4) PASS on both** — the guard now
+genuinely guards. Dev probe user seeded + PURGED after (0 users / 0 orphan
+archives, D1-verified); prod language restored + the probe project trashed
+(the finally block).
+
+**4. The release + the desktop half (§12.3):** bump `ea549418` →
+**v0.4.1.52** (tag + GitHub Release; CI/CD green; carriers unchanged v465).
+The re-pin: island @ ea549418 @ v0.4.1.52 — THE FIX RIDES THE ISLAND's
+devboard.js v41 (the new verifyDist needle pins the `stTask = findTask`
+merges ×2); the anchors re-recorded v40→v41 (the board + sprint inserts +
+the JS_FILES note + the index.html tag pin + probe-sprintdeadline's devboard
+carrier needle); seams unchanged 7+2/3/0; sync round-1 clean; `--check` OK;
+**ALL 14 PROBES GREEN**; pushed `24d6506` → autorelease **v0.1.54-desktop**
+(installer + portable + checksums.txt; the 5 lockstep files @ 0.1.54).
+
+**5. The docs sweep (§12.4):** this worklog entry (+ the rotate: newest 4
+kept — the S257 verification pass, S258, S259, S260; the S257 phase round
+archived); Changelogs row 260 + the §1 chain rotated (counts current: vitest
+1003/1003 · i18n 1711/1711 · e2e 518/518 · sw v465 · schema 66/0067);
+DEBT.md's S259-finding row CLOSED & removed — the repo's FIRST-EVER DEBT
+resolution, the closure recorded in the commit message + here + Changelogs
+(the S256/DT-5 "items CLOSED and were removed" precedent); spec §14 gains
+the S260 row; the zip + the healthcheck ping + the Telegram notify per the
+ritual.
+
+**Next:** the plan is complete and the one follow-up is closed — nothing
+queued; the next session is the owner's call (dogfood v0.4.1.52 + desktop
+v0.1.54).

@@ -4631,3 +4631,98 @@ management API), and the Telegram notify to the owner chat.
 **Next:** unchanged — Phase 6 (S257), Backend modularization (the devboard
 split, BE-11/13/14/15/16/17, FN-ALLOWLIST re-pins) — zero route-path changes,
 desktop no-op by design.
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session S257 — Phase 6: Backend modularization (2026-11-08)
+
+**The owner's ask, verbatim:** the §13 next-session prompt for Phase 6 (S257) of the
+owner-approved AUDIT-REMEDIATION-SPEC — the behavior-neutral devboard.ts split,
+executed EXACTLY per §9, with the atomic same-change obligations, the full §12.2
+ladder, the dev→smoke→prod→smoke deploy round, the desktop no-op noted per §0.5,
+BE-20 explicitly backlog, and the §12.4 close.
+
+**Anchor re-verification (the spec's own warning):** the spec was written at
+`71808075` (devboard.ts 1,337 ln); phases 1–5 landed since — HEAD `d0d95a8f`
+carried devboard.ts at **1,511 ln** and **33 endpoint registrations** (the spec's
+"31" pre-dates S255's `GET /api/sprints/:id/doc`; at the spec's own commit the file
+had 32 — the "31" was a pre-existing minor miscount, honestly recorded). The FN
+pins had also drifted: **5** devboard.ts pins (spec said four) + the S253-born
+archive-done pin, plus the helpers' setTaskTags. All re-verified before editing.
+
+**The split (commit `e7a2a91d`):** `src/routes/devboard.ts` DELETED, carved by
+feature into `src/routes/devboard/{index,schemas,board,tasks,sprints,strategies,
+archives,misc}.ts` — all 33 paths byte-identical, mounted at `/` via `app.route`,
+`app.ts`'s `import … from './routes/devboard'` resolves to the new index
+**untouched**. `devboard-helpers.ts` stays the shared domain layer (its 3
+importers + the s241 test import unchanged). The dedups in the same atomic change:
+- **BE-11** `categoriesForProject` → `lib/categories.ts` (the byte-identical SQL
+  the board GET + the detail pool each carried — diffed before extraction).
+- **BE-13** the reorderSchema name collision dissolves: `devtaskReorderSchema`
+  (devboard/schemas.ts) vs `projectReorderSchema` (validation/schemas.ts; the one
+  importer re-keyed). Quicknotes'/sadhana's own same-named schemas are different
+  findings, untouched (out of the audit's flagged pair).
+- **BE-14** `buildUpdate()` — the ×4 SET-builder (devtasks PATCH loop + the two
+  sprint PATCH arms ride it; **projects PATCH's loop keeps its own shape**: its
+  undefined→null belt is different grammar from the skip-undefined entries loop —
+  forcing one shape would change belt behavior; documented at the helper).
+- **BE-15** `assertNoActiveSibling` + `assertLatestSprint` → devboard-helpers.ts
+  (the ×4/×2 verbatim guards; Response-returning, byte-identical verdicts).
+- **BE-16** `touchProject` (the ×18 project-stamp — the byte-identical
+  `cfg.db.execute` shape rides the helper at 15 sites: devboard ×9, core/media ×3,
+  core/links ×2, core/hurdles ×1; hurdles' two queued `tx.sql` sites + module.ts's
+  two user-scoped variants keep their own statement, documented) + the
+  rate-limit body ×2 + glance query ×2 folds (local helpers in projects/index.ts).
+- **The carves:** PATCH-sprint's 127-line FN pin DISSOLVES (the handler is a thin
+  dispatcher + `patchDraftSprint` / `startedSprintSets` / `patchStartedSprint`,
+  each under the bar — the spec's own ask); archive-done's fold rides archives.ts's
+  `foldTagSnapshots` (the SHARED snapshot builder /finish uses too) and its
+  63-line pin dissolves. **FN pins: 6 → 4** (devboard.ts's 5 → board 102 /
+  tasks 73 / sprints 143; setTaskTags stays by design; 2 dissolved) — recorded
+  before/after. FILE-ALLOWLIST: the sprints.ts row (556 ln, the one module over
+  ~400) replaces the retired monolith row.
+- **The two documented test read-target updates** (the ONLY test edits):
+  acceptance-s247's contract-mirror block reads the new modules; sprint-ui-s243's
+  archives twin reads archives.ts. Every behavioral test UNTOUCHED — proven by the
+  suite.
+
+**The ladder (all green, in order):** tsc strict → eslint 0 → vitest **998/998** →
+prod build → portability → fn-shape (PASS, pins re-keyed) → boundaries →
+`node --check` on every moved/touched file (Node 24 type-stripping — verified
+genuine: a broken temp file exits 1) → cache-bust + i18n 1707/1707 + precache +
+bundle-size + css-bundles + dist-wiring → workers-runtime smoke (PBKDF2 + login +
+render on the real Workers runtime) → **e2e 510/510, zero flakes** (24.5 min, the
+Playwright browser installed fresh in this sandbox).
+
+**Live (the §9.6 round):** push `e7a2a91d` → CI green → CD deployed dev AND prod
+(its own dev probe gates the prod step). The new `scripts/live-s257-probe.mjs`
+(the S255 pattern): a **63-check smoke** over ALL six modules — (A) health ok +
+schema 66 + sw v463 unchanged, (B) the eight-key board payload + lean + the
+304 stamp round-trip, (C) task create/labels/deps family (idempotent/self/cycle)/
+tag add-remove/PATCH-done/reorder/archive-done, (D) the paged archives + restore-
+labeled + delete, (E) the FULL sprint lifecycle (draft arm + dates-rejection belt
+→ start → started arm: extend→closed, reopen via null end → the one-active 409 on
+a second draft's start → pause → resume → finish → the completed-sprint DELETE
+refusal), (F) strategies (create/PATCH/case-twin 409/assign/completion-guard 409/
+complete-after-pause/delete), (G) the category quick-add (new + case-insensitive
+reuse), backlog docs, project tags, the htmlx ping, (H) the browser boots on
+/kanban + /sprint.html (one lean GET each, zero page errors). **Local rehearsal
+63/63 → dev 63/63 (the seeded probe user, purged after: 0 users, 0 orphan
+archives) → prod 63/63 (the test account; probe project soft-deleted)**. Prod
+error_log 0 rows since the deploy.
+
+**Desktop: NO-OP by design (§0.5/§9.7)** — zero island files touched (no
+public/js, public/css, or HTML change in the diff; the desktop bridge is
+path-based and every path is byte-identical; per-path ETags ride the version
+stamp, also unchanged). The desktop repo received no commit; the island pin
+stays `6db3ae94` @ web v0.4.1.49 — noted here as the phase's explicit written
+parity record.
+
+**BE-20 (detailHtml carve-up): stays backlog** per §9.8 — not attempted.
+
+**Version:** 0.4.1.49 → **0.4.1.50**. Commit: `e7a2a91d` + this close.
+
+**Next:** Phase 7 (S258) — UI/UX polish (FE-6 focus trap, FE-9 the strategy
+filter strip, FE-11 scoped clear-done, FE-17 sidebar state, FE-18 keyboard lane
+move) — an island round → the desktop re-pin + release.

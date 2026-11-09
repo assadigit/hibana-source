@@ -136,6 +136,9 @@ test('FE-18 — the card ⋯ menu census + the Move-to submenu: keyboard-reachab
   // the menu closed + the toast named the destination
   await expect(page.locator('.spark-menu-pop:not([hidden])')).toHaveCount(0)
   await expect(page.locator('.toast')).toContainText('Moved to')
+  // the toast overlays the lanes while it lives — let it dismiss before the
+  // second round's hover/click (Playwright waits for hit-target stability)
+  await expect(page.locator('.toast')).toHaveCount(0, { timeout: 8_000 })
 
   // server truth + a second move back (the row set re-derives from the NEW lane)
   const board = await page.evaluate(async (pid) => await (await fetch(`/api/projects/${pid}/devboard`)).json(), pid)
@@ -258,7 +261,7 @@ test('FE-17 — the sprint sidebar survives re-renders: the expanded fold stays 
   const ids = await page.evaluate(async () => {
     const res = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 's258 side board', status: 'developing' }) })
     const pid = ((await res.json()) as { id: string }).id
-    const cat = (await (await fetch(`/api/projects/${pid}/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'SideCat', color_fill: '#5B8DEF', color_text: '#FFFFFF' }) })).json()) as { id: string }
+    const cat = (await (await fetch(`/api/projects/${pid}/categories`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'SideCat', color_fill: '#F0CCCC', color_text: '#682727' }) })).json()) as { id: string }
     await fetch(`/api/projects/${pid}/devtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 's258 side task', category_id: cat.id }) })
     return { pid, cat: cat.id }
   }, undefined)
@@ -275,9 +278,11 @@ test('FE-17 — the sprint sidebar survives re-renders: the expanded fold stays 
   await expect(quick).toBeVisible()
   await quick.type('draft not to lose')
 
-  // trigger a FULL re-render through the eye toggle (render() — the same path a
-  // concurrent mutation takes)
-  await page.locator(`[data-cat-eye="${ids.cat}"]`).click()
+  // trigger a FULL re-render — the CONCURRENT-MUTATION shape: a programmatic
+  // click on the eye toggle fires the same render() path while focus stays in
+  // the input (a pointer click would legitimately move focus to the button —
+  // the audit's case is the background re-render mid-typing)
+  await page.evaluate((id) => { const el = document.querySelector(`[data-cat-eye="${id}"]`); if (el) el.click() }, ids.cat)
   await page.waitForTimeout(300)
 
   // the fold SURVIVED + the draft text SURVIVED + focus came back to the input

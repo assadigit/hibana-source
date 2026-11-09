@@ -886,6 +886,12 @@
           const fresh = tmp.firstElementChild
           if (!fresh) return render()
           colEl.replaceWith(fresh)
+          // S258 (FE-18's round, the root cause it surfaced): a repainted lane's
+          // .db-card-menu placeholders are EMPTY (the injector owns their markup —
+          // render() re-arms at its own tail, but renderColumn never did, so every
+          // post-mutation card — after a move/edit/delete/drop — sat with a DEAD ⋯
+          // until the next full render). Idempotent: fills only [data-ok]-less menus.
+          injectDbCardMenus()
           refreshSheet() // an open enlarge sheet mirrors its lane
           applyFocus() // the dim classes ride the column elements
           syncFilterMeta()

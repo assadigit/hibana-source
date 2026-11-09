@@ -170,7 +170,13 @@ const main = async () => {
     await page.keyboard.press('Enter')
     await page.waitForSelector('.db-modal .db-tag:has-text("s259-regression")', { timeout: 5_000 })
     await page.click('.db-modal [data-db-save]')
-    await page.waitForTimeout(900)
+    // S260 probe fix (P1): the old in-page querySelector round could never
+    // resolve :has-text() (a Playwright-only pseudo) — its .catch(() => false)
+    // masked the SyntaxError as a permanent FAIL, so this check had never once
+    // run green (at S259 close it fired "the finding" while a real regression
+    // also existed; the S260 live probes then "failed" with the fix deployed
+    // and the e2e green). The locator wait below is the e2e twin's contract:
+    // auto-retry up to 5s for the post-save repaint to paint the chip.
     // S260 (the finding FIXED): the tag POST lands (201) and the editor shows
     // the chip; the S260 micro-fix merges the outcome into state.tasks[].tags
     // (devboard.js's editor Enter/✕ handlers), so Phase-3's repaint — which
@@ -178,10 +184,8 @@ const main = async () => {
     // the card stayed chipless until the next reload (the remove path left a
     // stale chip); the data was always safe server-side. This line is the
     // regression ticket: it must hold green on every deploy from here on.
-    const cardChip = await page.evaluate((sel) => {
-      const wrap = document.querySelector(sel)
-      return wrap ? wrap.textContent.includes('s259-regression') : false
-    }, cardSel).catch(() => false)
+    const chipOnCard = page.locator(`${cardSel} .pd-task-tags .pd-tag`, { hasText: 's259-regression' })
+    const cardChip = await chipOnCard.waitFor({ state: 'visible', timeout: 5_000 }).then(() => true).catch(() => false)
     check('(B4) kanban TAG: the chip renders on the card', cardChip, cardChip ? '' : 'REGRESSION — the S260 fix regressed: the tag saved (201) but the repaint misses it (state.tasks never merged). Re-open the DEBT.md row.')
     const truth = await api(`/api/projects/${pid}/devboard`)
     const truthBody = truth && truth.ok() ? await truth.json() : null

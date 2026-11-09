@@ -13,51 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S256 (supplement) — the re-sent prompt's round: the authed live visual pass + the close ritual's credential-dependent halves (2026-11-08)
-
-**The situation:** the owner re-sent the Phase 5 §13 prompt with a FRESH credential
-block (the prod test account + the D1-correct Cloudflare account + the healthchecks
-management/read keys + the Telegram bot token). By the time this session cloned, a
-parallel S256 run had ALREADY shipped and closed the phase (836cc18e→6db3ae9,
-v0.4.1.49 live; desktop v0.1.50 re-pinned + released, all 14 probes green) — its
-honest gap: its own credential block carried a Cloudflare token for the WRONG
-account (the devseed's `d1 execute` 404s) and NO prod test account, so the authed
-live visual matrix + the zip + the healthcheck ping + the Telegram notify never ran.
-This session detected the duplication at push time (rejected, non-fast-forward — no
-history rewrite per §0.2), reset to origin/main, and closed EXACTLY those gaps:
-
-- **THE AUTHED LIVE VISUAL PASS (§8 step 5, the phase's missing leg):** the probe's
-  PART B unlocked on prod (explicit PROBE_LOGIN/PROBE_PASS — `scripts/live-s256-probe.mjs`
-  now runs the visual matrix on prod when the test account is provided, and RESTORES
-  the account's language_pref after: the loop ends on 'fa' and prod is the owner's
-  real account). **PROD 67/67** (the test account: 16 legs = {en,fa}×{light,claude-dark}×
-  {board,sprint,projects,project} — the bundles parse 4048/4098 rules, the theme
-  tokens paint, FA flips dir=rtl, content renders, ZERO page errors; the probe
-  project soft-deleted; the language restored) and **DEV 67/67** (the seeded probe
-  user — the devseed ran with THIS block's `6ff25b…`-account token, the exact
-  credential the parallel session lacked; the probe user + archive orphans purged
-  after: 0 users / 0 orphans).
-- **THE ZIP:** `hibana.0.4.1.49.zip` → the sandbox download folder (wired-HTML
-  build, 681 tracked + 80 dist files, integrity OK, **secret-scan CLEAN** — every
-  credential value from the block scans zero; the ghp_/cfut_ grep hits are the ops
-  scripts' own regex literals + redacted history prose, verified by inspection).
-- **THE HEALTHCHECK PING:** via the **REAL per-check URL from the management API**
-  (the "Hibana" check, slug e24cc4eb…, its API-served ping_url pinged → HTTP 200 →
-  last-ping moved to 20:18:37Z — NOT the credentials block's guessed
-  `…/<pingkey>/hibana` slug path; the S253 doctrine re-confirmed: the block's
-  slug-path URL is not the check's real ping URL).
-- **THE TELEGRAM NOTIFY:** delivered to the owner-role chat (the app's own routing —
-  the linked chat resolved from prod's telegram_captures; sendMessage HTTP 200).
-
-**The parallel-implementation note (honest):** this session had independently built
-and fully verified a parallel FE-5/FE-13 round before the fetch revealed the closed
-phase (998/998 vitest + 510/510 e2e + a mobile Lighthouse before/after + a 114-check
-local visual rehearsal). It was NOT pushed — the phase was closed and §0.2 forbids
-rewriting published history — and is preserved locally on branch
-`s256-parallel-superseded` for reference. The shipped design stands.
-
-**Next:** unchanged — Phase 6 (S257), Backend modularization.
-
 ## Session S256 (verification pass) — the prompt's third send, re-verified (2026-11-08)
 
 The owner's Phase 5 §13 prompt arrived a THIRD time, after the phase was already
@@ -256,3 +211,84 @@ nothing. The re-check, all run fresh in this session's sandbox:
 probe-created `S257 Probe Cat` row (from the close session's run; harmless, invisible
 outside the category library) and three trashed `S257 …` probe projects (trash; the
 7-day cron purges). Nothing was deleted from prod beyond the documented probe flow.
+
+## Session S258 — Phase 7: UI/UX polish (the implementation round + the verification-pass/desktop-half close) (2026-11-09)
+
+**The situation:** the owner sent the Phase 7 prompt (S258). By the time this
+session cloned, a parallel run had ALREADY shipped the web implementation
+(`d2e6f883` FE-11 backend → `4a91be21` the islands round → `721061dc` the
+renderColumn menu re-arm fix → `51b8e320`/`93bb40b8` the live-probe tooling →
+`2f3aac14` the v0.4.1.51 release bump; CI green on every push incl. e2e
+510→515; its commit messages record live dev 46/46 + prod 46/46 + error_log 0)
+— but the session died BEFORE the desktop half and the close ritual: the
+worklog had no S258, Changelogs had no row 258, spec §14 said PENDING, and the
+desktop island was still pinned at `6db3ae94` (web v0.4.1.49). Exactly the
+S256/S257 re-sent-prompt shape. This session re-verified instead of
+re-executed, then closed the two missing halves.
+
+**THE WEB HALF, RE-VERIFIED (not re-implemented):**
+- **Code review vs spec §10, all five findings:** FE-6 the ONE shared
+  `hibana.focusTrap(overlay, {restoreTo?, restore?}) → release()` helper in
+  app.js (Tab wrap both directions + pull-back-in + opener restore) wired into
+  the full modal family (confirm — the supersede path releases too; devboard
+  buildModal via `modalTrap` + `openEditor`'s new `restoreEl`; the board task
+  view + enlarge sheet — the traps replace the manual restores; the sprint
+  strategy modal); FE-9 the `#sp-filter-strip` explainer strip
+  (`st.filteredBy`/`st.filterReset` EN+FA, the one-click Clear riding the
+  board filter bar's own grammar); FE-11 the bulk `POST
+  /api/projects/:id/devtasks/clear-done` (owner-scoped, reads outside the tx,
+  chunked 99-id deletes in ONE `cfg.db.transaction`, tag recount,
+  touchProject, history row, `{ok, deleted:n}` — additive-only; the board's
+  Clear done rides it through `B().api()`); FE-17 `renderSide` harvests the
+  open folds + quick-add drafts + the focused input/caret and re-applies them;
+  FE-18 the ⋯ menu's Move-to submenu (aria-haspopup/expanded, lane rows with
+  the S48p dots, current lane excluded, `patchTask` + `repaintTaskColumns`,
+  the `movedTo` toast) + `721061dc`'s root-cause fix (renderColumn re-arms the
+  menus). The e2e: s247-a11y's containment test + the new
+  `e2e/s258-ux-polish.spec.ts`. The §10.3 desktop-outbox verdict is documented
+  in API-AND-SYNC-CONTRACT.md §3.2 (NO `pathFor` case).
+- **A false alarm, honestly recorded:** this session's first read of
+  `FOCUSABLE_SEL` showed `'aref], …'` — an apparent mangled `a[href]` — which
+  would have thrown on every Tab. Verified via a byte-level re-read it was
+  THIS SANDBOX's bash-output rendering eating `[h` sequences (the file at HEAD
+  is correct: `a[href]`; same for the e2e locators). No bug; lesson recorded.
+- **The §12.2 ladder, ALL GREEN in THIS session:** `npm run verify` EXIT 0
+  (tsc · eslint 0 · **vitest 1003/1003** · prod build · portability · fn-shape
+  · boundaries) + cache-bust + **i18n parity 1711/1711** + precache + bundle +
+  css-bundles + dist-wiring gates + `node --check` on all 9 touched JS files +
+  the workers-runtime smoke + **e2e 515/515 as 6 sequential shards
+  (90+83+92+79+91+80), ZERO flakes** on the canonical tree.
+- **Live, re-proven in THIS session (`scripts/live-s258-probe.mjs`):**
+  **dev 46/46** (the seeded probe user — health ok, schema 66, sw v464, the
+  wired-form carrier checks incl. `.sp-filter-strip` + `.db-move-submenu` in
+  the served bundle + `focusTrap` in the served app.js, the 8-leg {en,fa}×
+  {light,claude-dark}×{board,sprint} feature matrix, the 390px legs, the FE-11
+  bulk round; **probe user PURGED after: 0 users / 0 orphan archives** —
+  verified via the D1 REST API) → **prod 46/46** (the test account; language
+  restored; probe project trashed) → **prod error_log 0** (24h window).
+
+**THE DESKTOP HALF (§12.3 — this session's build):** the re-pin to
+`2f3aac14` @ web v0.4.1.51. `PIN_REF`/`PIN_PACKAGE_VERSION` + the
+`desktop.yml` WEB_REF/WEB_VERSION twins moved together. **The FE-6 shim
+port** (the round's desktop-owned addition): `desktop-shim.js` gains
+`window.hibana.focusTrap` — the 1:1 app.js port (app.js is stripped from the
+island; the established toast/confirm pattern) — wired into the shim's own
+confirm (the supersede path releases too; close restores to the opener) and
+exported so devboard's editor trap, the board's view/sheet traps, and the
+sprint strategy modal all trap on the desktop exactly as on the web. **The
+FE-11 seam change:** the retired per-task DELETE fan-out drops SEAM_PATCHES
+site 12 — board-page.js's seam count goes **4→3** (7+2/3/0, verifyDist
+re-pinned; zero Go changes — the bridge allow-lists any `/api/` POST,
+verified at bindings.go:481). The §10.3 outbox verdict re-verified on the
+desktop bytes themselves (`.Enqueue(` sites are ALL test-only). The drifted
+anchors re-recorded: the app.js strip line v221→v222, the devboard insert
+anchors v39→v40 (board + sprint), the index.html tag pins (board-page v38,
+board-bundle ?v=2, devboard v40, i18n-en v112, i18n v165), the manifest
+notes (i18n trio v112/v165/v106). **ALL 14 PROBES GREEN** on the real island
+bytes — probe-sprintdeadline's carrier needle re-pinned to the S258 set, and
+**probe-view grows the S258/FE-6 legs** (the shim exports focusTrap + 10-Tab
+containment inside the view + the Esc close restores focus to the opening
+card — the port PROVEN live, not just shipped). Pushed `7f2a23d` →
+autorelease cut **v0.1.52-desktop**.
+
+**Next:** Phase 8 (S259) — the close-out & full verification round (§11).

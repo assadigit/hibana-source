@@ -13,70 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S257 (verification pass) — the re-sent prompt's round, re-verified (2026-11-09)
-
-The owner's Phase 6 §13 prompt arrived AGAIN, after the phase was already executed
-and closed (`e7a2a91d` + `0771db73`, v0.4.1.50 live, §14 DONE). Correct behavior per
-the S253/S256 precedent: **RE-VERIFY, never re-execute** — the split is live on both
-workers and re-running the carve would churn settled code, pins, and the release for
-nothing. The re-check, all run fresh in this session's sandbox:
-
-- **Repo:** fresh clone, local == origin/main (`0771db73`), tree clean; docs complete
-  and consistent (worklog S257, Changelogs row 257, spec §14 DONE row 6).
-- **The split re-proven on the bytes:** `src/routes/devboard.ts` gone; the 8 modules
-  present ({index,schemas,board,tasks,sprints,strategies,archives,misc}.ts); ALL 33
-  endpoint path registrations extracted from BOTH the pre-split monolith
-  (`git show e7a2a91d~1`) and the new modules — the sets diff EMPTY (the 33rd is
-  `app.all('/api/devboard/ping')`, invisible to a get/post/patch/delete-only regex —
-  the honest reconciliation of the close's count); index.ts mounts the six sub-routers
-  at `/` behind ONE `requireAuth` exactly as spec'd.
-- **The dedups re-proven in place:** BE-11 `categoriesForProject` (lib/categories.ts,
-  both board.ts + detail-helpers.ts ride it), BE-13 `devtaskReorderSchema`/
-  `projectReorderSchema`, BE-14 `buildUpdate` (helpers:50; sprints×2 + tasks + 
-  strategies), BE-15 `assertNoActiveSibling`/`assertLatestSprint` (×4/×2), BE-16
-  `touchProject` (15 call sites) + the rate-limit ×2 + glance ×2 folds in
-  projects/index.ts; FN-ALLOWLIST re-keyed 6→4 (board 102 / tasks 73 / sprints 143 +
-  setTaskTags; 2 dissolved; 4 drift-re-anchors) and FILE-ALLOWLIST's sprints.ts row.
-- **The only two test edits re-proven read-target-only:** acceptance-s247 + 
-  sprint-ui-s243 — the diffs move WHICH file is read, never what is asserted.
-- **Ladder re-run green:** `npm run verify` EXIT 0 (tsc strict, eslint 0, vitest
-  **998/998**, prod build, portability, fn-shape, boundaries) + cache-bust + i18n
-  1707/1707 + precache (+8 KB headroom) + bundle (0.0%) + css-bundles + dist-wiring
-  + workers-runtime smoke + parse-check on every moved file. **e2e 510/510**: this
-  sandbox is ~4× slower, so the suite ran as 6 sequential shards — 509 passed in
-  shards + the ONE non-split-related timing flake (s120-draft-flush notes-autosave
-  convergence under shard load) re-run in isolation: **4/4 green** — de-flaked by
-  proof, not by retry-blindness. (The Playwright browser was installed fresh — the
-  first 508-failure round was the missing binary, environmental.)
-- **Live re-proven on BOTH workers:** latest deployments 2026-11-08T23:52 (dev+prod —
-  the close push's CD); health ok/db up/schema 66 on both; `live-s257-probe.mjs`
-  (the 63-check smoke): **local 63/63** (scratch Node server + seeded user) → **dev
-  63/63** (probe user seeded via D1 with this block's token, PURGED after: 0 users /
-  0 orphan projects / 0 archives) → **prod 62/63**: the single FAIL is
-  `(G) category quick-add creates (201) — 200` — PROVEN benign: the user-scoped
-  category library on the test account already carries `S257 Probe Cat` (created
-  2026-11-08T23:34:02Z by the close session's own prod probe run; `projects: 3` now),
-  and the 200 is the DOCUMENTED S152 existing-reuse shape
-  (`{"ok":true,"id":"…","existing":true}` — verified by a direct API round-trip);
-  the follow-up case-twin reuse check passes with the exact expected shape. NOT a
-  regression — a stale expectation when the probe re-runs against the same account.
-  Prod error_log: **0 rows** (24 h window).
-- **Desktop re-proven NO-OP:** repo == origin (`d024400`); island pin `6db3ae94` @ 
-  web v0.4.1.49 unchanged; desktop.yml twins together; releases v0.1.50 + v0.1.51
-  both carry "island @ 6db3ae94" with the full asset chain.
-- **Close ritual re-delivered for this sandbox:** `hibana.0.4.1.50.zip` (806 files,
-  integrity OK, secrets-scanned clean) → the sandbox download folder; healthcheck
-  ping via the REAL per-check URL from the management API (the "Hibana" check
-  `9cb70b04…` → HTTP 200, last_ping moved to 2026-11-09T01:18:23Z — the block's
-  slug-path URL was NOT used, the S253 doctrine); Telegram notify delivered to the
-  owner's linked private chat (resolved from prod's telegram_captures → 92788333,
-  sendMessage ok, message_id 152).
-
-**Honest residue note:** the prod test account's category library still carries the
-probe-created `S257 Probe Cat` row (from the close session's run; harmless, invisible
-outside the category library) and three trashed `S257 …` probe projects (trash; the
-7-day cron purges). Nothing was deleted from prod beyond the documented probe flow.
-
 ## Session S258 — Phase 7: UI/UX polish (the implementation round + the verification-pass/desktop-half close) (2026-11-09)
 
 **The situation:** the owner sent the Phase 7 prompt (S258). By the time this
@@ -327,3 +263,64 @@ ritual.
 **Next:** the plan is complete and the one follow-up is closed — nothing
 queued; the next session is the owner's call (dogfood v0.4.1.52 + desktop
 v0.1.54).
+
+## Session S261 — the light health-check round on v0.4.1.52 / desktop v0.1.55 (2026-11-09)
+
+**The round:** the owner's post-plan prompt — the audit remediation plan was
+COMPLETE at S260 (spec §14; the one follow-up closed), so this session is a
+LIGHT health check, no code changes: run the live probe (live-s259-probe.mjs)
+on dev+prod expecting 58/58, verify the automated backup lane is fresh (<7 h),
+and record anything that drifts (DEBT.md first, never same-session fixes).
+
+**1. GREEN — everything the round's checks could reach:**
+- **The automated backup lane is FRESH:** hibana-safe `backups/` holds 120
+  snapshots; latest `snapshot-2026-11-09T21-23-21-554Z.json` — **2.42 h old**
+  (bar: <7 h); the 6 h cadence intact (03/09/15/21 UTC, dev :17 + prod :23).
+- **The probe's (A) carriers, live on BOTH workers:** /api/health ok · db up ·
+  schema 66 · sw.js carries hibana-v465 (dev hibana.aliassadi.workers.dev +
+  prod hibana.ir, fetched directly this session).
+- **The FULL 58-check probe, LOCAL rehearsal on HEAD (cdc1f42b = ea549418 +
+  docs-only): 58/58 ALL GREEN** — scratch Node server (PORT 3017, fresh DB,
+  migrations auto-applied to 0067, seeded local QA user), the whole journey
+  incl. **(B4) PASS** (the S260 tag-chip fix's regression guard) and zero
+  page/console errors through the {en,fa}×{light,dark} matrix + 390px legs.
+- **Desktop v0.1.55:** the docs-close push (92996ae) rode the autorelease to
+  **v0.1.55-desktop** (published 21:52Z; same island bytes as v0.1.54 —
+  worklog-only push, the v0.1.53 pattern). `sync-island.mjs --check` OK (58
+  files byte-identical, pin ea549418 @ v0.4.1.52); **ALL 14 PROBES GREEN**
+  (run in this sandbox against the real island bytes); desktop.yml twins
+  ea549418/0.4.1.52 correct.
+- **The lanes:** CI + CD + release green on ea549418; desktop + autorelease
+  green on 67aacc0 (v0.1.55); Uptime workflow green (20:38Z); the daily Error
+  monitor green (13:06Z — the 11-07 failure recovered 11-08, predates S259).
+
+**2. THE HONEST GAP — the two authed live-probe legs did NOT run (55 of the
+58 checks need a login):**
+- **dev:** the seeded probe user needs a D1 write into pm-app-dev — the
+  session's Cloudflare token belongs to the **Currena** account (its worker
+  list is currena-api/currena-markets/…; the D1 list on the given account ID
+  is empty), not the account holding Hibana's D1s.
+- **prod:** the owner's test account (S259_LOGIN/S259_PASS) was not in the
+  session block — it lives in credentials.md / the owner's per-session block
+  and is never committed.
+- Also: the block's second CF token (…e168d256) **fails tokens/verify**
+  (invalid or expired) — flagged to the owner for rotation/re-paste.
+- Everything short of the authed journey was verified live (carriers above),
+  and the exact HEAD bytes passed the full 58/58 locally — so any residual
+  risk is confined to deployment-vs-tree drift on the authed surfaces, which
+  only the two blocked legs can rule out. The ask (A/B/C) is in the report.
+
+**3. Drift found: NONE.** No DEBT.md rows added (nothing drifted; the rows
+stand at 7, the S259-finding row stays CLOSED). No code changes; package
+stays 0.4.1.52; the ladder was not re-run (runtime bytes identical to S260's
+green ladder — the local probe re-proved the behavior instead).
+
+**4. Ritual notes:** healthcheck ping + Telegram notify SKIPPED (the ping
+URL/Telegram token were not in this session's block); no zip (docs-only
+round, no version bump). Mirrored to the sandbox worklog per Agents.md.
+
+**Next:** the owner sends (a) the Hibana-account CF token with D1 write (for
+the dev seed+purge) and (b) the test account login → a short follow-up runs
+the two live legs verbatim (dev: seed → probe → purge; prod: probe with the
+test account, language restored, probe project trashed) and appends the
+verdict. Nothing else is queued.

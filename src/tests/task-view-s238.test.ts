@@ -181,10 +181,10 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=106')).toBe(true)
   })
 
-  it('sw.js is at hibana-v464 and the round notes the carrier bumps (S258 moved the ladder — the CSS/asset-diet round; the pin intent is preserved)', () => {
+  it('sw.js is at hibana-v465 and the round notes the carrier bumps (S260 moved the ladder — the S259-finding micro-fix round; the pin intent is preserved)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v464"')).toBe(true)
-    expect(sw.includes('// v464 (S258)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v465"')).toBe(true)
+    expect(sw.includes('// v465 (S260)')).toBe(true)
     // the S238 note stays in the history block (the discipline: every prior entry
     // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v452 (S238)')).toBe(true)

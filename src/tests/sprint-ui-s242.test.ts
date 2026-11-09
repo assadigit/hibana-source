@@ -266,9 +266,9 @@ describe('S242 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     for (const page of ['board.html', 'sprint.html']) {
       const html = readPublic(page)
       expect(html).toMatch(/\/js\/emoji-picker\.js\?v=\d+/)
-      // S258 moved devboard.js to v40 (the UI/UX polish round) — the pin moves
-      // with it (was v39, moved by S255's payload round; S256 left v39 alone)
-      expect(html).toMatch(/\/js\/devboard\.js\?v=40/)
+      // S260 moved devboard.js to v41 (the S259 finding's micro-fix) — the pin
+      // moves with it (was v40, moved by S258's UI/UX polish round)
+      expect(html).toMatch(/\/js\/devboard\.js\?v=41/)
       // S244: the shared date control rides both modal-serving pages (D6); S254 → v2,
       // S256 (FE-13's esc twin consolidation) → v3
       expect(html).toMatch(/\/js\/due-control\.js\?v=3/)

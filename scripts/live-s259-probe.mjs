@@ -3,7 +3,8 @@
 // live probe: the spec's §11 step 3 — the FULL-SYSTEM regression on the deployed
 // worker, end to end through the REAL UI, after seven phases of remediation.
 //
-//   (A) deploy carriers — the health probe (ok, schema 66) + sw.js hibana-v464;
+//   (A) deploy carriers — the health probe (ok, schema 66) + sw.js hibana-v465
+//       (S260 bumped it from v464 — the S259 finding's micro-fix rode the carrier);
 //   (B) THE USER JOURNEY (the REAL login page, the real session cookie):
 //       login → /projects (the overview home + the cards view) → /project.html
 //       (the detail) → /kanban (create → tag → move → done → archive) →
@@ -61,7 +62,7 @@ const main = async () => {
   check('(A) /api/health answers ok', health && health.ok === true, JSON.stringify(health)?.slice(0, 60))
   check('(A) schema_version is 66', Number(health?.schema_version) === 66, `schema_version=${health?.schema_version}`)
   const sw = await fetch(`${URL_BASE}/sw.js`).then((r) => r.text()).catch(() => '')
-  check('(A) sw.js carries hibana-v464 (the Phase-7 final carrier)', sw.includes('"hibana-v464"'))
+  check('(A) sw.js carries hibana-v465 (S260 — the S259 finding\'s micro-fix bumped it from v464)', sw.includes('"hibana-v465"'))
 
   // ---------- the browser context ----------
   const browser = await chromium.launch()
@@ -170,21 +171,22 @@ const main = async () => {
     await page.waitForSelector('.db-modal .db-tag:has-text("s259-regression")', { timeout: 5_000 })
     await page.click('.db-modal [data-db-save]')
     await page.waitForTimeout(900)
-    // THE S259 FINDING (recorded, not fixed — per the session's red line): the tag
-    // POST landed (201, the data is SAFE server-side) and the editor shows the chip,
-    // but Phase-3's repaint reads state.tasks — which the immediate tag POST never
-    // merges — so the CARD stays chipless until the next reload. Pre-S254 the save's
-    // full reload() refetched the tags and the chip appeared. Regression class: FE-1's
-    // merge contract missed the editor's immediate tag add/remove round.
+    // S260 (the finding FIXED): the tag POST lands (201) and the editor shows
+    // the chip; the S260 micro-fix merges the outcome into state.tasks[].tags
+    // (devboard.js's editor Enter/✕ handlers), so Phase-3's repaint — which
+    // renders from state — now paints the CARD chip in the same beat. Pre-S260
+    // the card stayed chipless until the next reload (the remove path left a
+    // stale chip); the data was always safe server-side. This line is the
+    // regression ticket: it must hold green on every deploy from here on.
     const cardChip = await page.evaluate((sel) => {
       const wrap = document.querySelector(sel)
       return wrap ? wrap.textContent.includes('s259-regression') : false
     }, cardSel).catch(() => false)
-    check('(B4) kanban TAG: the chip renders on the card', cardChip, cardChip ? '' : 'THE S259 FINDING — the tag saved (201) but the repaint misses it (state.tasks never merged); pre-S254 the reload showed it. Recorded as the regression ticket.')
+    check('(B4) kanban TAG: the chip renders on the card', cardChip, cardChip ? '' : 'REGRESSION — the S260 fix regressed: the tag saved (201) but the repaint misses it (state.tasks never merged). Re-open the DEBT.md row.')
     const truth = await api(`/api/projects/${pid}/devboard`)
     const truthBody = truth && truth.ok() ? await truth.json() : null
     const taggedTask = (truthBody?.tasks || []).find((t) => (t.title || '').includes('S259 created by regression'))
-    check('(B4) kanban TAG: the server truth carries the tag (data SAFE — display-only gap)', (taggedTask?.tags || []).length > 0, `tags=${JSON.stringify(taggedTask?.tags || [])}`)
+    check('(B4) kanban TAG: the server truth carries the tag (the data layer was always safe)', (taggedTask?.tags || []).length > 0, `tags=${JSON.stringify(taggedTask?.tags || [])}`)
     check('(C/FE-1) the tag save repainted WITHOUT a board refetch', (await boardGets()) === afterCreate, `GETs ${afterCreate}→${await boardGets()}`)
 
     // move: the card ⋯ → Move to → planned (the FE-18 keyboard path; zero GET)

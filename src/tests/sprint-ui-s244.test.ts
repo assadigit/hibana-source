@@ -413,10 +413,10 @@ describe('S244 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     expect((readPublic('js/due-control.js').match(/\bhibanaFetch\(/g) || []).length).toBe(0)
   })
 
-  it('sw.js is at hibana-v464 with the S256 carrier note (the CSS/asset diet moved the ladder; the S244 pin intent is preserved, the carriers moved with it)', () => {
+  it('sw.js is at hibana-v465 with the S260 carrier note (the S259-finding micro-fix moved the ladder; the S244 pin intent is preserved, the carriers moved with it)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v464"')).toBe(true)
-    expect(sw.includes('// v464 (S258)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v465"')).toBe(true)
+    expect(sw.includes('// v465 (S260)')).toBe(true)
     expect(sw).toMatch(/due-control\.js v1 \(NEW tag on board\+sprint\)/)
     expect(sw).toMatch(/devboard\.js v36/)
     expect(sw).toMatch(/i18n-fa\.js\?v=104/)

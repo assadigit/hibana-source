@@ -705,10 +705,10 @@ describe('S247 — §24-6 the same instant both ways (dueDayLabel)', () => {
 // s245/s246 pins re-pinned in place with citations).
 // ---------------------------------------------------------------------------
 describe('S247 — the public/ hygiene (the cache-bust ladder moved with the fix)', () => {
-  it('devboard.css is at v46 on all 19 carrier pages (the S256 FE-5 head swap moved board/sprint/projects/project onto the per-page bundles) and sw.js is at hibana-v463 with the S256 carrier note', () => {
+  it('devboard.css is at v47 on all 19 carrier pages (the S256 FE-5 head swap moved board/sprint/projects/project onto the per-page bundles; S258 bumped the sheet for the FE-9 strip + the FE-18 submenu) and sw.js is at hibana-v464 with the S258 carrier note', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v463"')).toBe(true)
-    expect(sw.includes('// v463 (S256)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v464"')).toBe(true)
+    expect(sw.includes('// v464 (S258)')).toBe(true)
     // the AA fix values are the shipped ones (the a11y e2e pins the rendered ratios)
     const css = readPublic('css/devboard.css')
     expect(css).toContain('.db-due-row.st-comfortable { color: #4d6b4d; }')
@@ -716,11 +716,12 @@ describe('S247 — the public/ hygiene (the cache-bust ladder moved with the fix
     expect(css).toContain('.db-dep-badge.st-blocked { color: #8a6428;')
     expect(css).toContain('.db-dep-badge.st-ready { color: #4d6b4d;')
     // S256 (FE-5): the individual-sheet carriers are the pages OUTSIDE the Projects
-    // section's bundle set — 19 pages carry devboard.css?v=46 (23 before the swap); the four bundle pages
-    // carry it INSIDE board-bundle/projects-bundle (guarded by check-css-bundles).
+    // section's bundle set — 19 pages carry devboard.css?v=47 (23 before the swap; S258
+    // moved it v46→v47); the four bundle pages carry it INSIDE board-bundle/
+    // projects-bundle (guarded by check-css-bundles).
     const dir = join(process.cwd(), 'public')
     const pages = readdirSync(dir).filter((f) => f.endsWith('.html') && !['board.html', 'sprint.html', 'projects.html', 'project.html'].includes(f))
-    const carriers = pages.filter((p) => readFileSync(join(dir, p), 'utf8').includes('/css/devboard.css?v=46'))
+    const carriers = pages.filter((p) => readFileSync(join(dir, p), 'utf8').includes('/css/devboard.css?v=47'))
     expect(carriers.length).toBe(19)
   })
 })

@@ -322,6 +322,62 @@ window.hibana = (() => {
     if (ms > 0) setTimeout(() => { if (el.parentNode) el.remove() }, ms)
   }
 
+  // S258 (FE-6, the audit's a11y gap): the ONE shared focus-trap + focus-restore
+  // helper for the custom-modal family (the div-based overlays that don't get the
+  // native <dialog>'s focus containment): the S210 hibana.confirm here, devboard.js's
+  // task editor (buildModal), the board's task view + enlarge sheet, and the sprint
+  // page's strategy modal — every one an aria-modal overlay that Tab used to walk
+  // straight out of (focus escaping to the page behind the backdrop), and none of
+  // which restored focus to the opener on close (confirm even parked it on <body>).
+  //
+  // Contract: hibana.focusTrap(overlay, opts?) → release().
+  //   - ON: a keydown listener on the overlay wraps Tab — focus past the last
+  //     focusable lands back on the first (and Shift+Tab past the first lands on
+  //     the last); a Tab issued while focus sits OUTSIDE the overlay (e.g. on
+  //     <body>) is pulled back INSIDE.
+  //   - ON: the caller's activeElement is remembered (or the explicit
+  //     opts.restoreTo element — a more precise opener like the clicked card).
+  //   - OFF: release() unbinds the wrap AND restores focus to that remembered
+  //     element, best-effort (still in the document and focusable; a re-render
+  //     may have replaced it — then focus stays wherever the browser left it,
+  //     the same graceful degradation the sheet's manual restore had).
+  //   - opts.restore === false → release unbinds without restoring (an opener
+  //     that hands focus elsewhere on purpose, e.g. the task view's Edit → the
+  //     editor takes focus).
+  // Desktop parity: the island's shim carries a 1:1 port (desktop-shim.js —
+  // app.js is stripped there; the port is the established toast/confirm pattern).
+  const FOCUSABLE_SEL = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  function focusTrap(overlay, opts) {
+    if (!(overlay instanceof Element)) return () => {}
+    const o = opts || {}
+    const prev = o.restoreTo instanceof Element ? o.restoreTo : (document.activeElement instanceof Element ? document.activeElement : null)
+    const focusables = () => Array.prototype.filter.call(overlay.querySelectorAll(FOCUSABLE_SEL), (el) => {
+      // visible = has layout (the hidden overlay's own display:none makes every
+      // child answer false — the trap is only consulted while open anyway)
+      return el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0
+    })
+    const onKeydown = (e) => {
+      if (e.key !== 'Tab' || e.ctrlKey || e.metaKey || e.altKey) return
+      const list = focusables()
+      if (!list.length) { e.preventDefault(); return }
+      const first = list[0]
+      const last = list[list.length - 1]
+      const active = document.activeElement
+      if (!overlay.contains(active)) { e.preventDefault(); first.focus(); return } // escaped → pull back in
+      if (e.shiftKey && (active === first || !overlay.contains(active))) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus() }
+    }
+    overlay.addEventListener('keydown', onKeydown)
+    let released = false
+    return function release() {
+      if (released) return
+      released = true
+      overlay.removeEventListener('keydown', onKeydown)
+      if (o.restore === false) return
+      if (prev && document.contains(prev)) { try { prev.focus() } catch { /* detached/unfocusable — leave focus where the browser has it */ } }
+    }
+  }
+
   // S210: the Hibana confirm modal — a centered, design-system replacement for the
   // native window.confirm() box (which broke the design language: square corners, no
   // backdrop, top-anchored, OS-themed). Returns a Promise<boolean> so callers keep the
@@ -343,7 +399,11 @@ window.hibana = (() => {
     const confirmLabel = o.confirmLabel ? esc(o.confirmLabel) : (o.danger ? _t('common.delete', 'Delete') : _t('common.ok', 'OK'))
     const cancelLabel = o.cancelLabel ? esc(o.cancelLabel) : _t('common.cancel', 'Cancel')
     // supersede any open confirm (a second confirm resolves the first as false)
-    if (_confirmOverlay) { _confirmOverlay._resolve(false); _confirmOverlay.remove(); _confirmOverlay = null }
+    if (_confirmOverlay) {
+      if (_confirmOverlay._resolve) _confirmOverlay._resolve(false)
+      if (_confirmOverlay._releaseTrap) _confirmOverlay._releaseTrap() // S258 (FE-6): the superseded opener gets its focus back too
+      _confirmOverlay.remove(); _confirmOverlay = null
+    }
     return new Promise((resolve) => {
       const overlay = document.createElement('div')
       overlay.className = 'hib-confirm-overlay'
@@ -380,13 +440,18 @@ window.hibana = (() => {
       overlay.appendChild(card)
       document.body.appendChild(overlay)
       _confirmOverlay = overlay
+      // S258 (FE-6): the trap wraps Tab inside the card + remembers the opener —
+      // release() restores focus there (replacing the old body.focus() park).
+      const releaseTrap = focusTrap(overlay)
+      overlay._releaseTrap = releaseTrap
       overlay._resolve = (val) => { resolve(val); _confirmOverlay = null }
       const close = (val) => {
         if (!overlay.parentNode) return
         overlay._resolve(val)
         overlay.remove()
-        // restore focus to the element that opened the dialog (best-effort)
-        document.body.focus()
+        // S258 (FE-6): restore focus to the element that opened the dialog (the
+        // shared trap's release — was body.focus(), which parked focus nowhere)
+        if (overlay._releaseTrap) overlay._releaseTrap()
       }
       // wire the buttons
       card.querySelector('[data-hib-confirm="cancel"]').addEventListener('click', () => close(false))
@@ -4347,6 +4412,6 @@ window.hibana = (() => {
   else announceShareCapture()
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', consumeShareTarget, { once: true })
   else consumeShareTarget()
-  Object.assign(window.__hib, { _t, esc, escHtml, toast, confirm, handle401, currentTheme, setTheme, paintThemeButton, toggleTheme, buildQuickAdd, openQuickAdd, buildProjectAdd, openProjectAdd, buildTaskAdd, openTaskAdd, buildQuickNoteAdd, openQuickNoteAdd, draftLines, DRAFT_X, renderDraft, syncStatCarousel, initStatCarousel, getCollapsed, setCollapsed, initCollapseButtons, dashQuadPhone, dashQuadGrid, dashQuadIndex, syncDashQuadDots, goToDashQuad, hideDashSwipeHint, wireDashSwipeHint, buildDashQuadDots, refreshDashboard, syncDashTodoFades, closeDashMenu, dashTaskRequest, refreshTaskSurface, setDashQuickaddReady, closeDashNoteBubble, closeDashNotePanel, openDashNoteBubble, dashNoteFmt, dashNoteEditStart, dashNoteEditRestore, dashNoteDelete, dashNoteRow, dashNoteAnchorRect, placeDashNotePanel, openDashNotePanel, closeOpenDashMenus, placeDashMenu, clearDashTaskDropTargets, dashTaskList, updateDashTaskEmpty, persistDashOrder, updateDashTaskCounter, showDashTaskMoveError, autosizeNote, buildNoteReader, enterNoteEdit, openNoteReader, injectNoteMenus, closeNoteMenus, buildNoteEditor, applyNoteView, applyNoteSize, applyNoteControlsOpen, markClampedNotes, fabEl, setFabOpen })
-  return { toast, confirm, handle401, openQuickAdd, openProjectAdd, openTaskAdd, setTheme, toggleTheme, paintThemeButton, currentTheme, esc }
+  Object.assign(window.__hib, { _t, esc, escHtml, toast, confirm, focusTrap, handle401, currentTheme, setTheme, paintThemeButton, toggleTheme, buildQuickAdd, openQuickAdd, buildProjectAdd, openProjectAdd, buildTaskAdd, openTaskAdd, buildQuickNoteAdd, openQuickNoteAdd, draftLines, DRAFT_X, renderDraft, syncStatCarousel, initStatCarousel, getCollapsed, setCollapsed, initCollapseButtons, dashQuadPhone, dashQuadGrid, dashQuadIndex, syncDashQuadDots, goToDashQuad, hideDashSwipeHint, wireDashSwipeHint, buildDashQuadDots, refreshDashboard, syncDashTodoFades, closeDashMenu, dashTaskRequest, refreshTaskSurface, setDashQuickaddReady, closeDashNoteBubble, closeDashNotePanel, openDashNoteBubble, dashNoteFmt, dashNoteEditStart, dashNoteEditRestore, dashNoteDelete, dashNoteRow, dashNoteAnchorRect, placeDashNotePanel, openDashNotePanel, closeOpenDashMenus, placeDashMenu, clearDashTaskDropTargets, dashTaskList, updateDashTaskEmpty, persistDashOrder, updateDashTaskCounter, showDashTaskMoveError, autosizeNote, buildNoteReader, enterNoteEdit, openNoteReader, injectNoteMenus, closeNoteMenus, buildNoteEditor, applyNoteView, applyNoteSize, applyNoteControlsOpen, markClampedNotes, fabEl, setFabOpen })
+  return { toast, confirm, focusTrap, handle401, openQuickAdd, openProjectAdd, openTaskAdd, setTheme, toggleTheme, paintThemeButton, currentTheme, esc }
 })()

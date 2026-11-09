@@ -252,9 +252,9 @@ describe('S242 — i18n EN+FA parity for every new string', () => {
 })
 
 describe('S242 — the desktop seam tripwires (the Phase 9 re-pin inventory)', () => {
-  it('board-page.js keeps EXACTLY the four seam-patched fetch sites (zero new ones)', () => {
+  it('board-page.js keeps EXACTLY the THREE seam-patched fetch sites (zero new ones — S258\'s FE-11 retired the clear-done DELETE fan-out for the ONE bulk api() call)', () => {
     const js = readPublic('js/board-page.js')
-    expect((js.match(/\bfetch\(/g) || []).length).toBe(4)
+    expect((js.match(/\bfetch\(/g) || []).length).toBe(3)
   })
 
   it('devboard.js keeps its 7 fetch sites (the quick-create POSTs through the shared api() wrapper)', () => {
@@ -266,9 +266,9 @@ describe('S242 — the desktop seam tripwires (the Phase 9 re-pin inventory)', (
     for (const page of ['board.html', 'sprint.html']) {
       const html = readPublic(page)
       expect(html).toMatch(/\/js\/emoji-picker\.js\?v=\d+/)
-      // S255 moved devboard.js to v39 (the payload & network diet round) — the pin
-      // moves with it (was v38, moved by S254's interaction round); S256 left v39 alone
-      expect(html).toMatch(/\/js\/devboard\.js\?v=39/)
+      // S258 moved devboard.js to v40 (the UI/UX polish round) — the pin moves
+      // with it (was v39, moved by S255's payload round; S256 left v39 alone)
+      expect(html).toMatch(/\/js\/devboard\.js\?v=40/)
       // S244: the shared date control rides both modal-serving pages (D6); S254 → v2,
       // S256 (FE-13's esc twin consolidation) → v3
       expect(html).toMatch(/\/js\/due-control\.js\?v=3/)

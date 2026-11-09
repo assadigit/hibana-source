@@ -407,16 +407,16 @@ describe('S244 — the Jalali round-trip (the real vendored converter + the rend
 describe('S244 — the desktop seam tripwires (the Phase 9 re-pin inventory)', () => {
   it('the fetch counts NEVER moved — the control + the render stack ride ZERO network of their own', () => {
     expect((readPublic('js/devboard.js').match(/\bfetch\(/g) || []).length).toBe(7)
-    expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(4)
+    expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(3) // S258 (FE-11): the clear-done fan-out retired — the bulk api() call replaced it
     // the NEW module ships zero fetches (a pure input widget)
     expect((readPublic('js/due-control.js').match(/\bfetch\(/g) || []).length).toBe(0)
     expect((readPublic('js/due-control.js').match(/\bhibanaFetch\(/g) || []).length).toBe(0)
   })
 
-  it('sw.js is at hibana-v463 with the S256 carrier note (the CSS/asset diet moved the ladder; the S244 pin intent is preserved, the carriers moved with it)', () => {
+  it('sw.js is at hibana-v464 with the S256 carrier note (the CSS/asset diet moved the ladder; the S244 pin intent is preserved, the carriers moved with it)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v463"')).toBe(true)
-    expect(sw.includes('// v463 (S256)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v464"')).toBe(true)
+    expect(sw.includes('// v464 (S258)')).toBe(true)
     expect(sw).toMatch(/due-control\.js v1 \(NEW tag on board\+sprint\)/)
     expect(sw).toMatch(/devboard\.js v36/)
     expect(sw).toMatch(/i18n-fa\.js\?v=104/)

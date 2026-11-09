@@ -340,6 +340,69 @@ test('a11y — color independence: the WORD always carries the meaning (threshol
   expect(errors).toEqual([])
 })
 
+// S258 (FE-6 — the audit's a11y gap closed): FOCUS CONTAINMENT, not just
+// Tab-walks. The custom-modal family (the div-based aria-modal overlays that
+// don't get the native <dialog>'s containment) now rides the ONE shared
+// hibana.focusTrap helper: Tab past the last focusable WRAPS to the first,
+// Shift+Tab past the first wraps to the last, and closing the overlay restores
+// focus to the opener. This test pins all three behaviors on the family's
+// members: the task editor (devboard.js buildModal), the task view + the
+// enlarge sheet (board-page.js), and hibana.confirm (app.js).
+test('a11y — FE-6 focus containment: Tab wraps inside the custom-modal family + focus restores to the opener', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Desktop Chromium only')
+  const errors = trackErrors(page)
+  await login(page)
+  const seed = await seedAllStates(page)
+  await page.goto(`/kanban?project=${seed.pid}`)
+  await boardReady(page)
+
+  // --- the task EDITOR: wrap + restore-to-the-⋯-trigger
+  const wrap = page.locator(`.pd-task-wrap[data-task-card="${seed.approaching}"]`)
+  await wrap.locator('.pd-task').hover()
+  const dots = wrap.locator('.db-card-menu [data-menu-open]')
+  await dots.click()
+  await wrap.locator('[data-db-edit-card]').click()
+  const editor = page.locator('.db-modal:not([hidden])')
+  await expect(editor).toBeVisible({ timeout: 5_000 })
+  await expect(editor.locator('[name=title]')).toBeFocused() // open lands on the primary field
+  // Shift+Tab from the FIRST focusable (the title) must wrap to the LAST
+  await page.keyboard.press('Shift+Tab')
+  await expect(editor.locator('[name=title]')).not.toBeFocused()
+  expect(await editor.evaluate((el) => el.contains(document.activeElement)), 'Shift+Tab wrap stays inside the editor').toBe(true)
+  // walk the whole cycle forward — focus never leaves the overlay
+  for (let i = 0; i < 30; i++) await page.keyboard.press('Tab')
+  expect(await editor.evaluate((el) => el.contains(document.activeElement)), '30 Tabs never leave the editor').toBe(true)
+  // close: focus restores to the ⋯ trigger (the VISIBLE opener)
+  await page.keyboard.press('Escape')
+  await expect(editor).toBeHidden()
+  await expect(dots).toBeFocused()
+
+  // --- the task VIEW: wrap + restore-to-the-card
+  const card = wrap.locator('.pd-task')
+  await card.click()
+  const view = page.locator('.db-view-overlay:not([hidden])')
+  await expect(view).toBeVisible()
+  await expect(view.locator('[data-db-view-x]')).toBeFocused() // the escape hatch is the tab root
+  for (let i = 0; i < 10; i++) await page.keyboard.press('Tab')
+  expect(await view.evaluate((el) => el.contains(document.activeElement)), '10 Tabs never leave the view').toBe(true)
+  await page.keyboard.press('Escape')
+  await expect(view).toBeHidden()
+  await expect(card).toBeFocused() // restored to the card that opened it
+
+  // --- the S210 confirm (app.js hibana.confirm): the wrap
+  // (the Done lane's ⋯ menu → Archive done tasks → the confirm overlay)
+  await page.locator('.pd-col[data-status="done"] [data-db-col-menu]').click()
+  await page.locator('[data-db-archive-done]').click()
+  const confirmOverlay = page.locator('.hib-confirm-overlay')
+  await expect(confirmOverlay).toBeVisible()
+  await expect(confirmOverlay.locator('[data-hib-confirm="ok"]')).toBeFocused() // the trailing primary takes focus
+  for (let i = 0; i < 8; i++) await page.keyboard.press('Tab')
+  expect(await confirmOverlay.evaluate((el) => el.contains(document.activeElement)), '8 Tabs never leave the confirm card').toBe(true)
+  await confirmOverlay.locator('[data-hib-confirm="cancel"]').click()
+  await expect(confirmOverlay).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
 // S247b (the Phase 8 reconciliation on top of e49f2e5): the adopted round
 // recorded the DARK-theme state family under 4.5:1 as a known limitation
 // (assumption 15); the claude-dark-theme.css S247b block closes it and THIS

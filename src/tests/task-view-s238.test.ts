@@ -55,20 +55,20 @@ describe('S238 focus-core — the FULL Esc peel (view → sheet → focus)', () 
 })
 
 describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
-  it('board.html carries the bumped carriers: board-page v37, focus-core v2 (BEFORE devboard), the board-bundle (which CONTAINS devboard v46 + polish-batch v30 + quicknotes v51 — the S256 FE-5 head swap; the freshness is guarded by check-css-bundles), i18n-en v111, i18n.js v164, due-control v3 (S256 moved the ladder — the CSS/asset-diet round; the pin intent is preserved, the versions moved with the carriers)', () => {
+  it('board.html carries the bumped carriers: board-page v38, focus-core v2 (BEFORE devboard), the board-bundle (which CONTAINS devboard v47 + polish-batch v30 + quicknotes v51 — the S256 FE-5 head swap; the freshness is guarded by check-css-bundles), i18n-en v112, i18n.js v165, due-control v3 (S258 moved the ladder — the UI/UX-polish round; the pin intent is preserved, the versions moved with the carriers)', () => {
     const html = readPublic('board.html')
-    expect(html.includes('/js/board-page.js?v=37')).toBe(true)
+    expect(html.includes('/js/board-page.js?v=38')).toBe(true)
     expect(html.includes('/js/focus-core.js?v=2"')).toBe(true)
     expect(html.indexOf('/js/focus-core.js?v=')).toBeLessThan(html.indexOf('/js/devboard.js?v='))
     // S256 (FE-5): the 19 individual sheet links collapsed into the ONE bundle link
     // (its parts carry devboard v46 + polish-batch v30 + quicknotes v51 — pinned fresh
     // by scripts/check-css-bundles.mjs + the committed bundle bytes).
-    expect(html.includes('href="/css/board-bundle.css?v=1"')).toBe(true)
+    expect(html.includes('href="/css/board-bundle.css?v=2"')).toBe(true)
     expect(html.includes('/css/devboard.css?v=')).toBe(false)
     expect(html.includes('/css/polish-batch.css?v=')).toBe(false)
     expect(html.includes('/css/quicknotes.css?v=')).toBe(false)
-    expect(html.includes('/js/i18n-en.js?v=111')).toBe(true)
-    expect(html.includes('/js/i18n.js?v=164')).toBe(true)
+    expect(html.includes('/js/i18n-en.js?v=112')).toBe(true)
+    expect(html.includes('/js/i18n.js?v=165')).toBe(true)
     // S244: the shared date control joins (after the jalaali vendor, before devboard.js)
     expect(html.indexOf('/vendor/jalaali.min.js')).toBeGreaterThan(-1)
     expect(html.indexOf('/vendor/jalaali.min.js')).toBeLessThan(html.indexOf('/js/due-control.js?v=3'))
@@ -105,14 +105,15 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     // S254 (FE-1): both Edit doors route through openEditorRepaint — the delegated
     // menu branch + the view's handoff; the helper wraps openEditor with the
     // per-column repaint onSaved (create mode keeps the full reload inside it).
-    expect(js.includes('openEditorRepaint(editCardBtn.dataset.dbEditCard)')).toBe(true)
+    expect(js.includes('openEditorRepaint(editCardBtn.dataset.dbEditCard,')).toBe(true)
     expect(js.includes('openEditorRepaint(id)')).toBe(true)
-    expect(js.includes('const openEditorRepaint = (tid) => {')).toBe(true)
+    expect(js.includes('const openEditorRepaint = (tid, restoreEl) => {')).toBe(true) // S258 (FE-6): the restore target rides along
     // the sheet's cloned ⋯ menus are re-armed (the data-ok strip)
     expect(js.includes("querySelectorAll('.db-card-menu[data-ok]')")).toBe(true)
-    // the controller keeps EXACTLY the four seam-patched fetch sites (the island
-    // rewrites those to hibanaFetch; the S238 block adds ZERO new ones)
-    expect((js.match(/\bfetch\(/g) || []).length).toBe(4)
+    // the controller keeps EXACTLY the THREE seam-patched fetch sites (the island
+    // rewrites those to hibanaFetch; the S238 block adds ZERO new ones — S258's
+    // FE-11 retired the clear-done DELETE fan-out for the ONE bulk api() call)
+    expect((js.match(/\bfetch\(/g) || []).length).toBe(3)
   })
 
   it('devboard.css: the blurred+greyscale backdrop, the ~800×600 sheet, the view card, the one-tap sheet copy', () => {
@@ -175,14 +176,15 @@ describe('S238 wiring — the DOM half (the island-style tripwires)', () => {
     ]) {
       expect(bp.includes(pair[0]), 'board-page.js _t call missing fallback ' + pair[0]).toBe(true)
     }
-    // the lazy FA injector literal moved to v104 (S246 — the dependencies round)
-    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=105')).toBe(true)
+    // the lazy FA injector literal moved to v106 (S258 — the UI/UX-polish round; S246
+    // had moved it to v105 — the dependencies round)
+    expect(readPublic('js/i18n.js').includes('/js/i18n-fa.js?v=106')).toBe(true)
   })
 
-  it('sw.js is at hibana-v463 and the round notes the carrier bumps (S256 moved the ladder — the CSS/asset-diet round; the pin intent is preserved)', () => {
+  it('sw.js is at hibana-v464 and the round notes the carrier bumps (S258 moved the ladder — the CSS/asset-diet round; the pin intent is preserved)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v463"')).toBe(true)
-    expect(sw.includes('// v463 (S256)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v464"')).toBe(true)
+    expect(sw.includes('// v464 (S258)')).toBe(true)
     // the S238 note stays in the history block (the discipline: every prior entry
     // is recoverable; the history block carries the last rounds)
     expect(sw.includes('// v452 (S238)')).toBe(true)

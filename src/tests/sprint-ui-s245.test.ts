@@ -387,13 +387,13 @@ describe('S245 — i18n EN+FA parity for every new string', () => {
 describe('S245 — the desktop seam tripwires + the ladder (the Phase 9 re-pin inventory)', () => {
   it('the fetch counts NEVER moved — the extension flows ride patchSprint/patchTask (ZERO new fetch sites)', () => {
     expect((readPublic('js/devboard.js').match(/\bfetch\(/g) || []).length).toBe(7)
-    expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(4)
+    expect((readPublic('js/board-page.js').match(/\bfetch\(/g) || []).length).toBe(3) // S258 (FE-11): the clear-done fan-out retired — the bulk api() call replaced it
   })
 
-  it('sw.js is at hibana-v463 with the S256 carrier note (the CSS/asset diet moved the ladder; the S245 pin intent is preserved, the carriers moved with it)', () => {
+  it('sw.js is at hibana-v464 with the S256 carrier note (the CSS/asset diet moved the ladder; the S245 pin intent is preserved, the carriers moved with it)', () => {
     const sw = readPublic('sw.js')
-    expect(sw.includes('const VERSION = "hibana-v463"')).toBe(true)
-    expect(sw.includes('// v463 (S256)')).toBe(true)
+    expect(sw.includes('const VERSION = "hibana-v464"')).toBe(true)
+    expect(sw.includes('// v464 (S258)')).toBe(true)
     expect(sw).toMatch(/devboard\.js v36/)
     expect(sw).toMatch(/board-page\.js v33/)
     expect(sw).toMatch(/project-page\.js v84/)
@@ -403,10 +403,10 @@ describe('S245 — the desktop seam tripwires + the ladder (the Phase 9 re-pin i
     expect(sw).toMatch(/i18n-fa\.js\?v=105/)
   })
 
-  it('the lazy devboard injector literals moved to v38 (the s242v33 lesson: the check reads them — S254 moved them from v37)', () => {
-    expect(readPublic('js/board-page.js').includes('/js/devboard.js?v=39')).toBe(true)
-    expect(readPublic('js/sprint-page.js').includes('/js/devboard.js?v=39')).toBe(true)
-    expect(readPublic('js/project-page.js').includes('/js/devboard.js?v=39')).toBe(true)
+  it('the lazy devboard injector literals moved to v40 (the s242v33 lesson: the check reads them — S258 moved them from v39)', () => {
+    expect(readPublic('js/board-page.js').includes('/js/devboard.js?v=40')).toBe(true)
+    expect(readPublic('js/sprint-page.js').includes('/js/devboard.js?v=40')).toBe(true)
+    expect(readPublic('js/project-page.js').includes('/js/devboard.js?v=40')).toBe(true)
   })
 
   it('the Extend affordance is byte-identical across the client stack + the detail-helpers server twin (the S209 parity seam)', () => {

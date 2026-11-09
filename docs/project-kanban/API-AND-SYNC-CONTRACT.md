@@ -91,7 +91,7 @@ table is §8. Writes need `Origin` (§2).
 | GET `…/duplicate-check?title=` | :621 | — | `{duplicate, existing}` | case-insensitive title match |
 | sparks folders CRUD + banners | :471-:607 | | | Ideas-domain, adjacent; banners via the shotstore chain (`:576-585`) |
 
-### 3.2 Dev board (cards) — `src/routes/devboard.ts` (root-mounted, `app.ts:392`; requireAuth `devboard.ts:136`)
+### 3.2 Dev board (cards) — `src/routes/devboard/` (S257 split: `{index,schemas,board,tasks,sprints,strategies,archives,misc}.ts`, root-mounted via `app.route('/', …)`; requireAuth in `index.ts`. The pre-split monolith `src/routes/devboard.ts` is retired; every path byte-identical)
 
 | Method & path | Line | Body (zod) | Returns |
 |---|---|---|---|
@@ -102,6 +102,7 @@ table is §8. Writes need `Origin` (§2).
 | PATCH `/api/devtasks/:id` | :261 | `updateDevTaskSchema` (`:60-72`): title, status, priority, category_id, sprint_id, sort_order, start_at/end_at, tags replace-set | `{ok,tags}` — `done_at` stamped/cleared by status transition (`:287-296`); **`updated_at` stamped on every column edit** (`:299-303`); owner-rescoped (SEC-11, `:305-308`); tags are NOT a column — replace-set via `setTaskTags` (`:310-312`) |
 | DELETE `/api/devtasks/:id` | :317 | — | `{ok}` — **hard delete** (`:325`), tag usage recount (`:324-326`), history row (`:327`) |
 | POST `…/devtasks/archive-done` | :334 | — | `{ok, archived:n}` — moves done → `project_archives` with a label snapshot (`:344-366`), then deletes from dev_tasks (`:370`) |
+| POST `…/devtasks/clear-done` (S258 — FE-11 scoped) | `devboard/tasks.ts:291` | — | `{ok, deleted:n}` — the BULK hard-delete of every done task in ONE transactional request (chunked 99-id deletes inside one `cfg.db.transaction`; `dev_task_tags` + `dev_task_deps` CASCADE; tag `usage_count` recounted after — the single-DELETE contract in bulk; history row + project stamp). The DESTRUCTIVE twin of archive-done — nothing snapshotted, nothing restorable. The board island's "Clear done" rides it through the `HibanaBoard.api()` choke point. **Desktop outbox verdict (§10.3): NO `pathFor` case needed** — the island's call rides the live `window.hibanaFetch` transport seam (the Go bridge's `Request`), never the offline outbox; the outbox has zero production enqueue sites today (`.Enqueue(` is test-only — the M0 native offline surface hasn't landed), so a `devtask.clear-done` entity would be dead code. A future native desktop surface that enqueues clears adds the case then (`"/api/projects/" + id + "/devtasks/clear-done"`) |
 | GET `…/archives` | :381 | — | `{archives:[… + tags[]]}` (label snapshots parsed, `:389-398`) |
 | POST `…/archives/:aid/restore` | :406 | — | `{ok, tags}` — same id back into dev_tasks, relabeled via `setTaskTags` (`:432`) |
 | DELETE `…/archives/:aid` | :439 | — | `{ok}` — permanent |

@@ -276,6 +276,51 @@ export function taskRoutes(cfg: Config) {
     return c.json({ ok: true, archived: tasks.length })
   })
 
+  // FE-11 (S258, the audit remediation's scoped half): the BULK hard-delete of a
+  // project's done tasks — ONE transactional request instead of the island's old
+  // N-request DELETE fan-out (which fired one DELETE per done card; a mid-fan-out
+  // transport failure left a half-cleared lane with no summary). Mirrors the
+  // archive-done family's shape exactly (owner-scoped via the owning project,
+  // reads outside the tx, chunked 99-id deletes inside ONE cfg.db.transaction)
+  // and the single-task DELETE's semantics (hard delete; dev_task_tags +
+  // dev_task_deps CASCADE away; tag usage recounted after; history row). This is
+  // the DESTRUCTIVE twin of archive-done — nothing is snapshotted, nothing is
+  // restorable. The island's confirm modal stays the guard (danger styling).
+  // Additive-only per §0.3: a NEW endpoint + a NEW response key; every existing
+  // path/payload untouched.
+  app.post('/api/projects/:projectId/devtasks/clear-done', async (c) => {
+    const user = c.get('user')
+    const t = trFor(c)
+    const p = await getOwnedProject(cfg, user.id, c.req.param('projectId'))
+    if (!p) return errJson(c, ErrorCode.not_found)
+    const tasks = await cfg.db.query<{ id: string }>(
+      `SELECT id FROM dev_tasks WHERE project_id = ? AND status = 'done'`,
+      [p.id],
+    )
+    if (tasks.length === 0) return c.json({ ok: true, deleted: 0 })
+    // The single-DELETE contract in bulk: collect the tags linked to the done rows
+    // BEFORE the cascade (SQL-side filtered by the same done predicate — the
+    // archive-done link-fetch grammar), so their usage counts can be recounted
+    // honestly after the links go away.
+    const links = await cfg.db.query<{ tag_id: string }>(
+      `SELECT DISTINCT tt.tag_id FROM dev_task_tags tt
+       JOIN dev_tasks t ON t.id = tt.task_id
+       WHERE t.project_id = ? AND t.status = 'done'`,
+      [p.id],
+    )
+    const now = new Date().toISOString()
+    await cfg.db.transaction(async (tx) => {
+      for (let i = 0; i < tasks.length; i += 99) {
+        const part = tasks.slice(i, i + 99)
+        tx.sql(`DELETE FROM dev_tasks WHERE id IN (${part.map(() => '?').join(',')})`, part.map((tk) => tk.id))
+      }
+    })
+    await refreshTagUsage(cfg, links.map((r) => r.tag_id))
+    await touchProject(cfg, p.id, now) // S257 (BE-16): the one project-stamp helper
+    await logHistory(cfg, p.id, t('{n} done tasks deleted', '{n} کار انجام‌شده حذف شد', { n: String(tasks.length) }))
+    return c.json({ ok: true, deleted: tasks.length })
+  })
+
   // ---- task tags (labels like "UI/UX" — find-or-create per user, then link) ----
 
   app.post('/api/devtasks/:id/tags', async (c) => {

@@ -13,86 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S258 — Phase 7: UI/UX polish (the implementation round + the verification-pass/desktop-half close) (2026-11-09)
-
-**The situation:** the owner sent the Phase 7 prompt (S258). By the time this
-session cloned, a parallel run had ALREADY shipped the web implementation
-(`d2e6f883` FE-11 backend → `4a91be21` the islands round → `721061dc` the
-renderColumn menu re-arm fix → `51b8e320`/`93bb40b8` the live-probe tooling →
-`2f3aac14` the v0.4.1.51 release bump; CI green on every push incl. e2e
-510→515; its commit messages record live dev 46/46 + prod 46/46 + error_log 0)
-— but the session died BEFORE the desktop half and the close ritual: the
-worklog had no S258, Changelogs had no row 258, spec §14 said PENDING, and the
-desktop island was still pinned at `6db3ae94` (web v0.4.1.49). Exactly the
-S256/S257 re-sent-prompt shape. This session re-verified instead of
-re-executed, then closed the two missing halves.
-
-**THE WEB HALF, RE-VERIFIED (not re-implemented):**
-- **Code review vs spec §10, all five findings:** FE-6 the ONE shared
-  `hibana.focusTrap(overlay, {restoreTo?, restore?}) → release()` helper in
-  app.js (Tab wrap both directions + pull-back-in + opener restore) wired into
-  the full modal family (confirm — the supersede path releases too; devboard
-  buildModal via `modalTrap` + `openEditor`'s new `restoreEl`; the board task
-  view + enlarge sheet — the traps replace the manual restores; the sprint
-  strategy modal); FE-9 the `#sp-filter-strip` explainer strip
-  (`st.filteredBy`/`st.filterReset` EN+FA, the one-click Clear riding the
-  board filter bar's own grammar); FE-11 the bulk `POST
-  /api/projects/:id/devtasks/clear-done` (owner-scoped, reads outside the tx,
-  chunked 99-id deletes in ONE `cfg.db.transaction`, tag recount,
-  touchProject, history row, `{ok, deleted:n}` — additive-only; the board's
-  Clear done rides it through `B().api()`); FE-17 `renderSide` harvests the
-  open folds + quick-add drafts + the focused input/caret and re-applies them;
-  FE-18 the ⋯ menu's Move-to submenu (aria-haspopup/expanded, lane rows with
-  the S48p dots, current lane excluded, `patchTask` + `repaintTaskColumns`,
-  the `movedTo` toast) + `721061dc`'s root-cause fix (renderColumn re-arms the
-  menus). The e2e: s247-a11y's containment test + the new
-  `e2e/s258-ux-polish.spec.ts`. The §10.3 desktop-outbox verdict is documented
-  in API-AND-SYNC-CONTRACT.md §3.2 (NO `pathFor` case).
-- **A false alarm, honestly recorded:** this session's first read of
-  `FOCUSABLE_SEL` showed `'aref], …'` — an apparent mangled `a[href]` — which
-  would have thrown on every Tab. Verified via a byte-level re-read it was
-  THIS SANDBOX's bash-output rendering eating `[h` sequences (the file at HEAD
-  is correct: `a[href]`; same for the e2e locators). No bug; lesson recorded.
-- **The §12.2 ladder, ALL GREEN in THIS session:** `npm run verify` EXIT 0
-  (tsc · eslint 0 · **vitest 1003/1003** · prod build · portability · fn-shape
-  · boundaries) + cache-bust + **i18n parity 1711/1711** + precache + bundle +
-  css-bundles + dist-wiring gates + `node --check` on all 9 touched JS files +
-  the workers-runtime smoke + **e2e 515/515 as 6 sequential shards
-  (90+83+92+79+91+80), ZERO flakes** on the canonical tree.
-- **Live, re-proven in THIS session (`scripts/live-s258-probe.mjs`):**
-  **dev 46/46** (the seeded probe user — health ok, schema 66, sw v464, the
-  wired-form carrier checks incl. `.sp-filter-strip` + `.db-move-submenu` in
-  the served bundle + `focusTrap` in the served app.js, the 8-leg {en,fa}×
-  {light,claude-dark}×{board,sprint} feature matrix, the 390px legs, the FE-11
-  bulk round; **probe user PURGED after: 0 users / 0 orphan archives** —
-  verified via the D1 REST API) → **prod 46/46** (the test account; language
-  restored; probe project trashed) → **prod error_log 0** (24h window).
-
-**THE DESKTOP HALF (§12.3 — this session's build):** the re-pin to
-`2f3aac14` @ web v0.4.1.51. `PIN_REF`/`PIN_PACKAGE_VERSION` + the
-`desktop.yml` WEB_REF/WEB_VERSION twins moved together. **The FE-6 shim
-port** (the round's desktop-owned addition): `desktop-shim.js` gains
-`window.hibana.focusTrap` — the 1:1 app.js port (app.js is stripped from the
-island; the established toast/confirm pattern) — wired into the shim's own
-confirm (the supersede path releases too; close restores to the opener) and
-exported so devboard's editor trap, the board's view/sheet traps, and the
-sprint strategy modal all trap on the desktop exactly as on the web. **The
-FE-11 seam change:** the retired per-task DELETE fan-out drops SEAM_PATCHES
-site 12 — board-page.js's seam count goes **4→3** (7+2/3/0, verifyDist
-re-pinned; zero Go changes — the bridge allow-lists any `/api/` POST,
-verified at bindings.go:481). The §10.3 outbox verdict re-verified on the
-desktop bytes themselves (`.Enqueue(` sites are ALL test-only). The drifted
-anchors re-recorded: the app.js strip line v221→v222, the devboard insert
-anchors v39→v40 (board + sprint), the index.html tag pins (board-page v38,
-board-bundle ?v=2, devboard v40, i18n-en v112, i18n v165), the manifest
-notes (i18n trio v112/v165/v106). **ALL 14 PROBES GREEN** on the real island
-bytes — probe-sprintdeadline's carrier needle re-pinned to the S258 set, and
-**probe-view grows the S258/FE-6 legs** (the shim exports focusTrap + 10-Tab
-containment inside the view + the Esc close restores focus to the opening
-card — the port PROVEN live, not just shipped). Pushed `7f2a23d` →
-autorelease cut **v0.1.52-desktop**.
-
-**Next:** Phase 8 (S259) — the close-out & full verification round (§11).
 ## Session S259 — Phase 8: Close-out & full verification (2026-11-09)
 
 **The phase:** §11 — prove the whole chain end-to-end after seven phases of change.
@@ -324,3 +244,97 @@ the dev seed+purge) and (b) the test account login → a short follow-up runs
 the two live legs verbatim (dev: seed → probe → purge; prod: probe with the
 test account, language restored, probe project trashed) and appends the
 verdict. Nothing else is queued.
+
+## Session S262 — the S261 follow-up: the two authed live legs, re-blocked on the same credentials (2026-11-10)
+
+**The round:** the owner's follow-up prompt — finish S261's blocked halves (the
+dev seed→probe→purge leg + the prod test-account leg of
+`scripts/live-s259-probe.mjs`, both expecting 58/58), no code changes, any
+failure to DEBT.md first, close per §12.4. The credential block the prompt
+carried is the SAME Currena-account block S261 had already recorded as
+insufficient, so this session re-confirmed the gap EMPIRICALLY (not assumed),
+re-proved everything the round's instruments could reach, recorded one NEW
+tooling finding (the rotate.mjs chain collision, below), and closed.
+
+**1. The credential re-check, empirical:**
+- The block's primary CF token verifies ACTIVE but belongs to the
+  Sedanama/Currena account — the ONLY account it can list (the "Sedanama.ir@gmail.com's
+  Account" the given account ID resolves to); its workers are currena-api /
+  currena-markets / currena-r10-probe / order / rba-probe / sedanamabot /
+  webhookset; the D1 database list on that account is EMPTY; a direct D1 REST
+  query against pm-app-dev's known UUID → error 7404 (database not found). The
+  Hibana D1s (pm-app-dev 80e02ce2-… / pm-app-prod d842fcb5-…) live on a
+  different Cloudflare account this token cannot reach → **the dev leg (seed →
+  probe → purge → D1-verify 0/0) is BLOCKED** — S261's finding, verbatim.
+- The block's second CF token (…e168d256) **still fails tokens/verify**
+  (invalid) — flagged to the owner for rotation/re-paste AGAIN.
+- The test account (S259_LOGIN/S259_PASS) is NOT in the block and by design
+  never committed anywhere (credentials.md is the owner-PC-only gitignored
+  copy; backup exports exclude password hashes; the GitHub token sees
+  hibana-safe but no credentials live there) → **the prod leg is BLOCKED**.
+- No in-rules workaround: writing a probe user into the PROD D1 is prohibited
+  ("never run tests against the live database"); dev registration is
+  invite-only (OPEN_REGISTRATION unset); and the purge + the 0-users /
+  0-orphan-archives verification need D1 write/read regardless of how a user
+  could be created.
+
+**2. What WAS verified, in THIS session (the honest reachable set):**
+- **Live carriers on BOTH workers, fetched directly:** dev
+  (hibana.aliassadi.workers.dev) + prod (hibana.ir) — /api/health ok · db up ·
+  schema 66 · sw.js carries hibana-v465.
+- **The FULL 58-check probe, LOCAL rehearsal on the exact current HEAD
+  (e11bd2b = ea549418 + docs-only — git diff cdc1f42..HEAD touches only
+  Changelogs/worklog files): 58/58 ALL GREEN incl. (B4) PASS** (the S260
+  tag-chip regression guard). Scratch Node server :3017 under the E2E
+  webServer contract env (fresh DB auto-migrated 0001→0067 = schema 66, seeded
+  local QA user ali@hibana.local); the whole journey: login through the REAL
+  login page → /projects overview + cards → /project.html detail → the kanban
+  round (create via the editor → tag → Move-to → done → archive-done + the
+  restorable snapshot row) → the sprint round (strategy create → sprint WITH
+  strategy → sidebar quick-add ONE POST / ZERO GET → start → task done on the
+  dot → finish exact-counts → strategy complete → draft delete through the
+  exact-counts modal) → the Phase-3/4/5 contracts (the editor-create's ONE
+  lean reload; EDIT/MOVE/DONE zero-refetch repaints; ?lean=1 both surfaces +
+  the default contract; the stamp ETag 304-empty / no-cross-304 /
+  mutation-moves-stamp round; exactly 4 stylesheet requests on all four pages)
+  → the {en,fa}×{light,claude-dark} matrix + the 390px legs — **ZERO page
+  errors / ZERO console errors**. (The first local run died only on the
+  sandbox lacking chromium-1248 for playwright 1.64 — installed, re-run green;
+  a sandbox-env issue, not an app issue.)
+- So: any residual risk stays confined to deployment-vs-tree drift on the
+  AUTHED surfaces — exactly the slice only the two blocked live legs can rule
+  out (S261's framing, unchanged).
+
+**3. THE NEW FINDING (recorded in DEBT.md, NOT fixed — the session's red
+line):** `scripts/rotate/rotate.mjs`'s §1-chain drop step pins the block to
+remove ONLY by version (`## 1-prev-prev-prev. Current state (v<blocks[3].version>`)
+and takes the FIRST match. When the chain's 3rd and 4th blocks share a version
+(exactly the docs-only-close shape — S259 v0.4.1.51 sitting over S258
+v0.4.1.51 at this close), the bottom-up relabel makes BOTH blocks carry the
+`1-prev-prev-prev` label + that version, and the drop deletes the 3rd (the
+NEWER block) instead of the 4th — silently losing the newer current-state
+block from the active chain (no error; git history keeps the bytes). Verified
+by line-level analysis of the live chain BEFORE running the tool; this
+close's §1 rotation was therefore done MANUALLY (S258 dropped, S259 kept as
+1-prev-prev-prev — chain verified correct after the edit). The fix (anchor on
+the LAST match or pin by the pre-relabel session label) is a future session's
+one-liner; DEBT.md row added (the 8th).
+
+**4. Drift found: NONE.** No app/runtime drift (the local 58/58 + the live
+carriers are green); no code changes (runtime stays v0.4.1.52 @ ea549418;
+package untouched); the ladder not re-run (runtime bytes identical to S260's
+green ladder — the local probe re-proved behavior instead, the S261 pattern).
+
+**5. Ritual notes:** healthcheck ping + Telegram notify SKIPPED again (the
+ping URL / Telegram token are not in the session block); no zip (docs-only
+round, no version bump); this worklog rotated to the newest 4 (S259 + S260 +
+S261 + S262 — the S258 phase round archived); mirrored to the sandbox worklog
+per Agents.md.
+
+**Next:** UNCHANGED from S261 — the owner sends (a) a Hibana-account CF token
+with D1 write (for the dev seed+purge) and (b) the test account login
+(S259_LOGIN/S259_PASS) → the short follow-up runs both legs verbatim (dev:
+seed → probe → purge, 0 users / 0 orphan archives D1-verified; prod: probe
+with the test account, language restored, probe project trashed) and appends
+the verdict. Also: rotate/re-paste the block's second CF token (still failing
+verify), and note the rotate.mjs DEBT row for a future micro-fix session.

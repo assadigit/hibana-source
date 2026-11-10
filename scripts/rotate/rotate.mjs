@@ -128,10 +128,23 @@ function rotateWorklog() {
 const HEAD_RE = /^## (1(?:-prev)*)\. Current state \(v([\d.]+) /gm
 const blocks = []
 let m
-while ((m = HEAD_RE.exec(md)) !== null) blocks.push({ label: m[1], version: m[2], head: m[0] })
+while ((m = HEAD_RE.exec(md)) !== null) blocks.push({ label: m[1], version: m[2], head: m[0], at: m.index })
 const EXPECT = ['1', '1-prev', '1-prev-prev', '1-prev-prev-prev']
 if (blocks.length !== 4 || blocks.some((b, i) => b.label !== EXPECT[i])) {
   throw new Error(`§1 chain shape unexpected: ${blocks.map((b) => b.label).join(' -> ')} — rotation aborted, file untouched`)
+}
+
+// DEBT row 8 (the S262 finding, fixed S264): capture the pre-relabel 4th block's header
+// line BEFORE relabeling — the drop target + the guard baseline. When the chain's 3rd and
+// 4th blocks share a version (the docs-only-close shape — all four shared v0.4.1.52 after
+// S263), the relabel leaves the 3rd block's header prefix IDENTICAL to the 4th's, so the
+// drop cannot pin on the version alone. The session marker (`— S<NNN>,` new shape /
+// `— Session <NNN> (` legacy shape) has headed every chain block since the chain's birth.
+const fourthLineEnd = md.indexOf('\n', blocks[3].at)
+const fourthHeadLine = md.slice(blocks[3].at, fourthLineEnd === -1 ? undefined : fourthLineEnd)
+const fourthSess = fourthHeadLine.match(/— (?:S|Session )(\d+)/)
+if (!fourthSess) {
+  throw new Error('4th §1 block header carries no `— S<NNN>` / `— Session <NNN>` session marker — rotation aborted, file untouched (cannot guard the drop)')
 }
 
 // relabel bottom-up, version-pinned (the S156..S197 recipe, now derived not hardcoded)
@@ -139,10 +152,20 @@ md = md.replace(`## 1-prev-prev. Current state (v${blocks[2].version}`, `## 1-pr
 md = md.replace(`## 1-prev. Current state (v${blocks[1].version}`, `## 1-prev-prev. Current state (v${blocks[1].version}`)
 md = md.replace(`## 1. Current state (v${blocks[0].version}`, `## 1-prev. Current state (v${blocks[0].version}`)
 
-// drop the OLD 1-prev-prev-prev block (the pre-relabel 4th) — its version is blocks[3].version
+// drop the OLD 1-prev-prev-prev block (the pre-relabel 4th) — its version is blocks[3].version.
+// DEBT row 8 fix (S264): anchor on the LAST match — the chain is newest-first, so the
+// pre-relabel 4th block is the LAST `## 1-prev-prev-prev. Current state (v…` header in the
+// file; a same-version relabeled 3rd block sits EARLIER (the old first-match indexOf
+// deleted that NEWER block instead). Guard: the dropped header line must be byte-identical
+// to the pre-relabel 4th header line AND mention its session (S<NNN>) — else abort untouched.
 const dropHead = `## 1-prev-prev-prev. Current state (v${blocks[3].version}`
-const dropStart = md.indexOf(dropHead)
+const dropStart = md.lastIndexOf(dropHead)
 if (dropStart === -1) throw new Error(`old bottom block (v${blocks[3].version}) not found — rotation aborted`)
+const dropLineEnd = md.indexOf('\n', dropStart)
+const droppedLine = md.slice(dropStart, dropLineEnd === -1 ? undefined : dropLineEnd)
+if (droppedLine !== fourthHeadLine || !droppedLine.includes(`S${fourthSess[1]}`)) {
+  throw new Error(`drop guard failed: the last-match bottom block is not the pre-relabel 4th block (expected session S${fourthSess[1]}, v${blocks[3].version}) — rotation aborted, file untouched`)
+}
 const nextHead = md.indexOf('\n## ', dropStart + 5)
 if (nextHead === -1) throw new Error('no next ## section after the dropped block — rotation aborted')
 md = md.slice(0, dropStart) + md.slice(nextHead + 1)

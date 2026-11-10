@@ -324,10 +324,16 @@ bump, no zip). Desktop: NO change needed — rotate.mjs is a source-repo docs to
 island bytes; no public/js/css/HTML touched → no §12.3 re-pin (desktop stays v0.1.55 @
 island ea549418; verified the desktop repo carries no rotate.mjs copy).
 
-**Ritual notes:** healthcheck ping (the REAL management-API per-check URL, the
-S253/S256 doctrine — the block's slug path stays unused) + Telegram notify (owner
-chat) DELIVERED; no zip (script-only round, no version bump); mirrored to the sandbox
-worklog per Agents.md; spec §14 gains the S264 row.
+**Ritual notes:** healthcheck ping DELIVERED (the REAL management-API per-check URL,
+the S253/S256 doctrine — the block's slug path stays unused; HTTP 200, the check's
+last_ping moved to 2026-11-10T04:49:36Z; ops note: the management API accepts the
+`X-Api-Key` header — the `Authorization: Bearer` form 401s on these keys). Telegram
+notify NOT DELIVERED — the block's bot token fails `getMe` with 404 (invalid — the
+hash is 34 chars vs Telegram's usual 35, likely truncated in the paste; S263's block
+carried a working one): flagged to the owner for a re-paste, the notify can ride the
+next session's close (the S261/S262 flag-the-failing-credential precedent). No zip
+(script-only round, no version bump); mirrored to the sandbox worklog per Agents.md;
+spec §14 gains the S264 row.
 
 **Next:** the queue is EMPTY — dogfood v0.4.1.52 + desktop v0.1.55. Standing candidate
 (NOT queued, S263's chat note): the probe could guard its cleanup on abnormal

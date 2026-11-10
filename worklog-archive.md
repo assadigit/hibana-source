@@ -4985,3 +4985,72 @@ surface); the spec's §14 marked COMPLETE with the Phase-8 row.
 fix prompt is in the final report (a micro-session: merge the tag outcome
 into state + the e2e pin; board + project pages both; then the standard
 ladder + re-pin + release).
+> **Rotation (HLTH-27):** sessions older than the newest 4 live in
+> `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
+> tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
+
+## Session S260 — Phase 8's follow-up: the S259 finding's micro-fix (2026-11-09)
+
+**The round:** the Phase-8 row's named follow-up — the micro-session S259's
+final report prompted (the ~1-line merge + an e2e pin, then the standard
+ladder + re-pin + release). One real regression in scope, fixed at its root
+and closed end to end: fix → ladder → deploy → probes → release → the desktop
+re-pin → its release → this close.
+
+**1. The fix (`04022e84`):** devboard.js's editor tag Enter/✕ handlers now
+merge into `state.tasks[].tags` BESIDE the editor draft — the immediate
+addTaskTag POST pushes the returned id into the found task's tags, the ✕ path
+splices it out — so Phase 3's post-save repaint (FE-1's zero-refetch render,
+which reads from state) paints the card chip in the same beat. Pre-fix: the
+chip only appeared after the next reload, and the ✕ path left a STALE chip.
+ONE merge in the shared state closes every state-rendering surface — the
+/kanban board lane repaint + the /sprint page's pure render (board + project
+pages share the same devboard state). Carried in the same atomic change: the
+e2e pin `e2e/s260-tag-edit-merge.spec.ts` (3 legs — add/remove/cancel, each
+asserting zero-refetch), the full cache-bust choreography (devboard.js v41
+×3 pages + ×3 injector literals, sw **hibana-v465**), the 8 vitest carrier
+re-pins, and the s259 probe's ticket line re-armed as the regression guard.
+
+**2. The ladder GREEN, in order:** verify (tsc → eslint 0 → vitest
+**1003/1003** → prod build → portability → fn-shape → boundaries) +
+cache-bust + i18n **1711/1711** + precache + bundle-size + `node --check`
+×5 + e2e **518/518 as 6 sequential shards (90+86+89+81+89+83), ZERO
+flakes** — the 3 new s260 tests green in shard 6 — + the workers smoke.
+
+**3. Deploy + live probes — and THE PROBE'S OWN B4 CHECK WAS BROKEN BY
+CONSTRUCTION:** pushed `04022e84` → CI ~11 m green → CD both workers, the
+sw v465 flip 20:42Z. The first live probes read **57/58 on BOTH workers** —
+with the fix deployed and the e2e green. The diagnosis (a headless repro):
+the probe's own B4 chip check fed Playwright's `:has-text()` to native
+`document.querySelector` → SyntaxError → `.catch(() => false)` → a PERMANENT
+FAIL — the check had NEVER once run green (at S259 close it fired "the
+finding" while the real regression ALSO existed — both true at once). The
+probe fix `b4c500be`: the e2e twin's locator contract (auto-retry 5 s).
+Re-run: **dev 58/58 + prod 58/58 — (B4) PASS on both** — the guard now
+genuinely guards. Dev probe user seeded + PURGED after (0 users / 0 orphan
+archives, D1-verified); prod language restored + the probe project trashed
+(the finally block).
+
+**4. The release + the desktop half (§12.3):** bump `ea549418` →
+**v0.4.1.52** (tag + GitHub Release; CI/CD green; carriers unchanged v465).
+The re-pin: island @ ea549418 @ v0.4.1.52 — THE FIX RIDES THE ISLAND's
+devboard.js v41 (the new verifyDist needle pins the `stTask = findTask`
+merges ×2); the anchors re-recorded v40→v41 (the board + sprint inserts +
+the JS_FILES note + the index.html tag pin + probe-sprintdeadline's devboard
+carrier needle); seams unchanged 7+2/3/0; sync round-1 clean; `--check` OK;
+**ALL 14 PROBES GREEN**; pushed `24d6506` → autorelease **v0.1.54-desktop**
+(installer + portable + checksums.txt; the 5 lockstep files @ 0.1.54).
+
+**5. The docs sweep (§12.4):** this worklog entry (+ the rotate: newest 4
+kept — the S257 verification pass, S258, S259, S260; the S257 phase round
+archived); Changelogs row 260 + the §1 chain rotated (counts current: vitest
+1003/1003 · i18n 1711/1711 · e2e 518/518 · sw v465 · schema 66/0067);
+DEBT.md's S259-finding row CLOSED & removed — the repo's FIRST-EVER DEBT
+resolution, the closure recorded in the commit message + here + Changelogs
+(the S256/DT-5 "items CLOSED and were removed" precedent); spec §14 gains
+the S260 row; the zip + the healthcheck ping + the Telegram notify per the
+ritual.
+
+**Next:** the plan is complete and the one follow-up is closed — nothing
+queued; the next session is the owner's call (dogfood v0.4.1.52 + desktop
+v0.1.54).

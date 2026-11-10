@@ -13,72 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S260 — Phase 8's follow-up: the S259 finding's micro-fix (2026-11-09)
-
-**The round:** the Phase-8 row's named follow-up — the micro-session S259's
-final report prompted (the ~1-line merge + an e2e pin, then the standard
-ladder + re-pin + release). One real regression in scope, fixed at its root
-and closed end to end: fix → ladder → deploy → probes → release → the desktop
-re-pin → its release → this close.
-
-**1. The fix (`04022e84`):** devboard.js's editor tag Enter/✕ handlers now
-merge into `state.tasks[].tags` BESIDE the editor draft — the immediate
-addTaskTag POST pushes the returned id into the found task's tags, the ✕ path
-splices it out — so Phase 3's post-save repaint (FE-1's zero-refetch render,
-which reads from state) paints the card chip in the same beat. Pre-fix: the
-chip only appeared after the next reload, and the ✕ path left a STALE chip.
-ONE merge in the shared state closes every state-rendering surface — the
-/kanban board lane repaint + the /sprint page's pure render (board + project
-pages share the same devboard state). Carried in the same atomic change: the
-e2e pin `e2e/s260-tag-edit-merge.spec.ts` (3 legs — add/remove/cancel, each
-asserting zero-refetch), the full cache-bust choreography (devboard.js v41
-×3 pages + ×3 injector literals, sw **hibana-v465**), the 8 vitest carrier
-re-pins, and the s259 probe's ticket line re-armed as the regression guard.
-
-**2. The ladder GREEN, in order:** verify (tsc → eslint 0 → vitest
-**1003/1003** → prod build → portability → fn-shape → boundaries) +
-cache-bust + i18n **1711/1711** + precache + bundle-size + `node --check`
-×5 + e2e **518/518 as 6 sequential shards (90+86+89+81+89+83), ZERO
-flakes** — the 3 new s260 tests green in shard 6 — + the workers smoke.
-
-**3. Deploy + live probes — and THE PROBE'S OWN B4 CHECK WAS BROKEN BY
-CONSTRUCTION:** pushed `04022e84` → CI ~11 m green → CD both workers, the
-sw v465 flip 20:42Z. The first live probes read **57/58 on BOTH workers** —
-with the fix deployed and the e2e green. The diagnosis (a headless repro):
-the probe's own B4 chip check fed Playwright's `:has-text()` to native
-`document.querySelector` → SyntaxError → `.catch(() => false)` → a PERMANENT
-FAIL — the check had NEVER once run green (at S259 close it fired "the
-finding" while the real regression ALSO existed — both true at once). The
-probe fix `b4c500be`: the e2e twin's locator contract (auto-retry 5 s).
-Re-run: **dev 58/58 + prod 58/58 — (B4) PASS on both** — the guard now
-genuinely guards. Dev probe user seeded + PURGED after (0 users / 0 orphan
-archives, D1-verified); prod language restored + the probe project trashed
-(the finally block).
-
-**4. The release + the desktop half (§12.3):** bump `ea549418` →
-**v0.4.1.52** (tag + GitHub Release; CI/CD green; carriers unchanged v465).
-The re-pin: island @ ea549418 @ v0.4.1.52 — THE FIX RIDES THE ISLAND's
-devboard.js v41 (the new verifyDist needle pins the `stTask = findTask`
-merges ×2); the anchors re-recorded v40→v41 (the board + sprint inserts +
-the JS_FILES note + the index.html tag pin + probe-sprintdeadline's devboard
-carrier needle); seams unchanged 7+2/3/0; sync round-1 clean; `--check` OK;
-**ALL 14 PROBES GREEN**; pushed `24d6506` → autorelease **v0.1.54-desktop**
-(installer + portable + checksums.txt; the 5 lockstep files @ 0.1.54).
-
-**5. The docs sweep (§12.4):** this worklog entry (+ the rotate: newest 4
-kept — the S257 verification pass, S258, S259, S260; the S257 phase round
-archived); Changelogs row 260 + the §1 chain rotated (counts current: vitest
-1003/1003 · i18n 1711/1711 · e2e 518/518 · sw v465 · schema 66/0067);
-DEBT.md's S259-finding row CLOSED & removed — the repo's FIRST-EVER DEBT
-resolution, the closure recorded in the commit message + here + Changelogs
-(the S256/DT-5 "items CLOSED and were removed" precedent); spec §14 gains
-the S260 row; the zip + the healthcheck ping + the Telegram notify per the
-ritual.
-
-**Next:** the plan is complete and the one follow-up is closed — nothing
-queued; the next session is the owner's call (dogfood v0.4.1.52 + desktop
-v0.1.54).
-
 ## Session S261 — the light health-check round on v0.4.1.52 / desktop v0.1.55 (2026-11-09)
 
 **The round:** the owner's post-plan prompt — the audit remediation plan was
@@ -299,3 +233,103 @@ named follow-up is DEBT row 8's micro-fix session (the rotate.mjs one-liner +
 the fixture-chain verify + the ladder); a candidate hardening noted in chat:
 the probe could guard its cleanup on abnormal termination (this session's
 pipe-kill incident is the case study).
+
+## Session S264 — DEBT row 8's micro-fix: the rotate.mjs §1-drop one-liner + guard (2026-11-10)
+
+**The round:** the owner's prompt — the one named follow-up from S263 (DEBT row 8).
+Objective verbatim: fix the §1-chain drop's same-version collision (the drop pins by
+version + first match; with all four chain blocks sharing v0.4.1.52 after S263 the
+relabel makes both the 3rd and 4th blocks match, and the drop deletes the NEWER block),
+anchor on the LAST match or pin by the pre-relabel session label, add a guard asserting
+the dropped header mentions the expected session, verify against a fixture chain with
+duplicate adjacent versions (a copy of the real Changelogs §1 chain), run the
+verification ladder, close per §12.4. One fix only — anything else found goes to DEBT.md
+first (nothing else was found).
+
+**1. The fix (`47e39c73`, scripts/rotate/rotate.mjs, +26/−3):** the drop anchors on the
+LAST match (`lastIndexOf`) — the chain is newest-first, so the pre-relabel 4th block is
+the LAST `## 1-prev-prev-prev. Current state (v…` header in the file; a same-version
+relabeled 3rd block sits EARLIER (the old first-match indexOf deleted that NEWER block).
+Plus the guard, pinned BEFORE the relabel: the 4th block's header line is captured
+byte-exact + its session marker extracted (`— S<NNN>,` / legacy `— Session <NNN> (` —
+the marker invariant verified across every chain block since the chain's birth); the
+dropped header must be byte-identical to that line AND mention its session, else abort
+with the file untouched. Supporting change: `at: m.index` recorded per block (the
+discovery regex already yielded it — the worklog mode's own pattern). Nothing else
+changed: the worklog mode, the relabel steps, the insert anchor, the prose caps, the
+dry-run — all untouched (the relabel/insert steps are label-pinned and provably never
+cross-match even at equal versions — analysis in-session).
+
+**2. The fixture matrix — 24/24 GREEN** (session-time harness at
+`/home/z/debt8-fixture`, not committed; inputs = copies of the REAL Changelogs.md):
+- **T1 REPRO (the pre-fix tool from git HEAD, on the real all-v0.4.1.52 chain):**
+  exit 0 — the corruption is SILENT — the chain comes out 264,263,262,**260**: the
+  NEWER S261 block deleted, S260 wrongly kept as the bottom block. DEBT row 8's
+  finding demonstrated on the real bytes.
+- **T2 FIX (the same input through the fixed tool):** 264,263,262,**261** — the 4th
+  (S260) dropped, the NEWER S261 kept, labels exact, row 264 prepended newest-first,
+  §3+ tail byte-identical.
+- **T3 GUARD (the fixed tool with the anchor regressed back to first-match):** the
+  guard FIRES ("drop guard failed … expected session S260"), exit 1, the file
+  byte-untouched — the guard independently catches the failure mode.
+- **T4 REPLAY (the finding's own historical shape):** the REAL e11bd2b5 (S261-close)
+  file — S259 v0.4.1.51 over S258 v0.4.1.51, exactly where S262 found the bug — plus
+  the REAL S262 body/row → **byte-identical to 76693ff4** (the manually-verified S262
+  close): the tool now reproduces the manual rotation exactly.
+- **T4b REPLAY (mixed versions):** the REAL 76693ff4 + the REAL S263 body/row →
+  **byte-identical to 21cf8c46** (the S263 close).
+- **T5 MIXED (synthetic):** the 4th block at a different version (no collision) — the
+  normal path drops the 4th correctly.
+- The PERMANENT regression check is the guard itself — it runs on every future
+  rotation and aborts before any damage (AGENTS.md §4's doctrine satisfied in-tool; a
+  committed vitest pin would churn the 1003-count pins for a scripts-file outside the
+  suite's src/tests scope — deliberately not added).
+
+**3. The ladder GREEN, in order:** `npm run verify` (tsc strict → eslint 0 → vitest
+**1003/1003** → prod build → portability → fn-shape → boundaries) + cache-bust PASS +
+i18n **1711/1711** + precache (2349 KB / 2350 budget) + bundle-size (+0.3%) +
+`node --check` on the touched JS + e2e **518/518 as 6 sequential shards
+(90+86+89+81+89+83), ZERO flakes** (the canonical-tree contract — build --restore-html
+first; the FA/EN × light/dark × desktop/390px matrix lives inside the suite) + the
+workers smoke ALL PASS (local miniflare, real CF creds).
+
+**4. The push + BOTH live legs (§14's tail):** CI SKIPS `scripts/rotate/**` pushes by
+design (paths-ignore — the GitHub API confirms 0 workflow runs on `47e39c73`), so
+NOTHING deployed and CD never fired: the standing workers are byte-identical to S260's
+green release (the designed docs-lane). Both live legs then re-ran GREEN on the REAL
+workers with this block's credentials:
+- **DEV:** seed (`live-s259-devseed.mjs`, probe-s259-dev@hibana.local) → **58/58 ALL
+  GREEN incl. (B4) PASS** → purge → D1 REST verified: **0 probe users / 0 orphan
+  archives / users back to the 6 baseline (projects 7)** — S263's post-close state
+  exactly.
+- **PROD (test account):** **58/58 ALL GREEN incl. (B4) PASS**, zero page/console
+  errors, the finally block green (no SIGPIPE this time — output to file, never
+  piped): language restored to **fa** + the probe project trashed; final D1 state:
+  lang fa · **0 alive S259-regression projects** · 0 orphan archives (trashed probe
+  total 6 = S263's 5 + this session's one; trash is the designed flow, the 7-day cron
+  purges).
+
+**5. THIS close's §1 rotation ran through the FIXED tool — the live end-to-end proof:**
+all four chain blocks shared v0.4.1.52 (S263/S262/S261/S260), so dropping S260
+exercised EXACTLY the fixed same-version path on the REAL file (S262/S263 had rotated
+manually precisely because of the bug): chain now S264/S263/S262/S261, row 264
+prepended, verified after the edit. The worklog rotated to the newest 4 (S261–S264;
+the S260 phase round archived).
+
+**6. Drift found: NONE.** No other code touched (the session's red line); no new DEBT
+rows (row 8 CLOSED & removed — the repo's second-ever DEBT resolution, the closure
+recorded in the commit message + here + Changelogs; 7 rows stand); runtime stays
+**v0.4.1.52 @ ea549418** (package untouched; the S201 rotate.mjs precedent — no version
+bump, no zip). Desktop: NO change needed — rotate.mjs is a source-repo docs tool, not
+island bytes; no public/js/css/HTML touched → no §12.3 re-pin (desktop stays v0.1.55 @
+island ea549418; verified the desktop repo carries no rotate.mjs copy).
+
+**Ritual notes:** healthcheck ping (the REAL management-API per-check URL, the
+S253/S256 doctrine — the block's slug path stays unused) + Telegram notify (owner
+chat) DELIVERED; no zip (script-only round, no version bump); mirrored to the sandbox
+worklog per Agents.md; spec §14 gains the S264 row.
+
+**Next:** the queue is EMPTY — dogfood v0.4.1.52 + desktop v0.1.55. Standing candidate
+(NOT queued, S263's chat note): the probe could guard its cleanup on abnormal
+termination (the S263 pipe-kill is the case study) — say the word and it becomes a
+DEBT row.

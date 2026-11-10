@@ -13,111 +13,6 @@
 > `worklog-archive.md` (and verbatim in git history) — this file is the ACTIVE
 > tail only. Rotate with `node scripts/rotate/rotate.mjs --worklog`.
 
-## Session S259 — Phase 8: Close-out & full verification (2026-11-09)
-
-**The phase:** §11 — prove the whole chain end-to-end after seven phases of change.
-Zero code changes in scope; a real regression DID surface and was recorded, not
-fixed (per the session's red line — the fix prompt goes to the owner below).
-
-**1. The §12.1 backup ritual, one final time — ALL GREEN:**
-- Fresh full SQL dumps of BOTH D1s (`scripts/d1-dump-tables.mjs`) →
-  `/home/z/hibana-backups/s259-closeout-{dev,prod}-20261109.sql` (+ manifests;
-  73 real tables, the 7 FTS virtuals excluded per the rebuild-from-triggers
-  classification). **Restore-verified:** both dumps load clean with
-  `PRAGMA foreign_keys=OFF`, `integrity_check = ok`, row counts recorded (prod:
-  users 6 · projects 46 · sprints 13 · strategies 3 · dev_tasks 75 ·
-  project_archives 148 · screenshots 20; dev: users 6 · projects 7 — the test
-  bed, probe-clean). Raw dumps carry sessions + hashes — local-only, never
-  committed (the backups/ ignore holds).
-- **Time-travel bookmarks:** prod `00002195-…87f2f293…` + dev
-  `0000120b-…cd231515…` (both schema 66; rows appended to Changelogs §9).
-- **The automated lane is flowing:** hibana-safe `backups/` holds 120
-  snapshots, latest `snapshot-2026-11-09T09-23-27-470Z.json` — 4.2 h old
-  (< the 7 h freshness bar; the 09:17 UTC cron tick landed at 09:23).
-
-**2. The restore drill — the red-line insurance policy, recorded:**
-- `npm run drill` **PASS** in this sandbox: Part A loud-skip (the newest
-  snapshot is AES-GCM; `BACKUP_ENCRYPTION_KEY` is owner-held by design — the
-  S201 baseline behavior) but the GitHub lane itself verified (120 snapshots
-  listed, newest identified + downloaded); Part B the synthetic round-trip
-  9/9 (export → restore → FTS rebuild, users untouched, rule-8 clean).
-- `npm run drill:planb` **PARTIAL PASS**: steps 1–3 green on the 2026-09-08
-  document (D1 log row → Telegram getFile → sha256 match → HIBENC1 magic);
-  steps 4–5 loud-skip on the same owner-key gate. Same as the recorded S201
-  baseline; the owner-side residue (run both drills once with the key, on the
-  owner machine — credentials.md) still stands.
-
-**3. The full-system regression — `scripts/live-s259-probe.mjs` (this
-session's instrument; the S25x probe pattern):** the REAL login page → the
-REAL session → the whole Projects journey through the REAL UI —
-**dev 57/58** (the seeded probe user, PURGED after: 0 users / 0 orphan
-archives, D1-REST-verified) → **prod 57/58** (the owner's test account on
-hibana.ir; language restored to its original; probe project trashed).
-The one FAIL on both workers is THE S259 FINDING (below). Everything else:
-carriers (health ok / schema 66 / sw v464 on both workers); the user journey
-(projects overview + cards view → project detail → kanban create via the
-editor / tag via the editor / move via the FE-18 Move-to / done / archive-done
-with the confirm + the restorable snapshot row → the sprint round: strategy
-create → sprint WITH strategy → sidebar quick-add joins the draft → start →
-task done on the timeline dot (the ✓) → finish (the exact-counts modal) →
-strategy complete → draft delete through the exact-counts modal); the
-Phase-3/4/5 behaviors re-proven on both workers (the repaint contracts: the
-editor-create's ONE LEAN reload — the documented S254 design; EDIT/MOVE/DONE
-zero-refetch repaints; the quick-add ONE POST / ZERO GET merge; BE-3 lean
-payload `?lean=1` on both surfaces + the default contract intact; BE-25 the
-stamp ETag round — matching If-None-Match → 304 empty, lean/default never
-cross-304, a mutation moves the stamp; FE-5 exactly 4 stylesheet requests on
-all four pages); the {en,fa} × {light,claude-dark} matrix on /kanban +
-/sprint + the 390px legs — **ZERO page errors / ZERO console errors on the
-whole journey, both workers**.
-
-**THE S259 FINDING (a real, user-visible regression — RECORDED, NOT FIXED
-per the session's red line):** adding a tag to an EXISTING task through the
-editor (the `[data-db-tag-in]` + Enter round — an immediate `addTaskTag`
-POST, 201, the data is SAFE server-side and every other surface sees it after
-a reload) no longer shows the chip on the CARD until the next reload.
-Root cause: Phase 3's repaint optimization (FE-1) — `addTaskTag`/`removeTaskTag`
-merge into the editor's draft but never into `state.tasks[].tags`, and the
-post-save repaint renders from state; pre-S254 the save's full `reload()`
-refetched the tags so the chip appeared. The remove path (✕ in the editor)
-leaves a STALE chip the same way. Class: FE-1's merge contract missed the
-editor's immediate tag add/remove round. Reproducible on both workers;
-recorded as a DEBT.md row + the spec §14 note + the fix prompt handed to the
-owner (a ~1-line merge fix + an e2e pin; the probe already asserts both
-halves — the FAIL line is the regression ticket).
-
-**4. The desktop half (≥ v0.1.52 — verified to this sandbox's limit):** the
-GitHub release lane: **v0.1.53-desktop** published 2026-11-09T12:57:56Z
-(island @ 2f3aac14 = web v0.4.1.51; checksums.txt + installer + portable zip)
-— the auto-release that rode the S258 close's worklog push; the update path
-itself PROVEN by **probe-update** (the full round on the real island bytes:
-the honest no-update default, the pill, the modal, the live apply + progress
-+ restart panel, the failure verdicts, the FA/RTL dark mirror, reduced
-motion). **ALL 14 PROBES GREEN** on the real generated island bytes: login /
-logout / newproject / **refresh (the sync round — the owner's exact scenario:
-the server-side deletion lands after ONE Refresh; the sync panel's pulled>0
-facts + the pulled=0 no-op honesty)** / **sprint + sprintdeadline (the sprint
-page with strategies)** / view (the S258 focusTrap legs) / settings / labels /
-focus / completefacts / soundfx / uiredesign / update.
-`sync-island.mjs --check` OK — 58 files under frontend/dist byte-identical to
-island.checksums.json (pin 2f3aac14 @ v0.4.1.51). Honest limit: this Linux
-sandbox cannot boot the Windows Wails app itself — the probes sit at the exact
-Wails boundary (the DT-2 mandate: the only browser-level desktop gate), and
-the release lane + auto-update round are verified end-to-end above.
-
-**5. The docs sweep:** Changelogs row 259 + §1 chain rotated (the §1 counts
-re-checked current: vitest 1003/1003 · i18n 1711/1711 · sw v464 · schema 66 /
-0067); this worklog rotated to the newest 4 (S259 + S258 + the S257 pair; the
-S256 verification pass archived); DEBT.md gains the S259 finding row;
-API-AND-SYNC-CONTRACT.md verified CURRENT (S255's lean/304 + FE-16 +
-S258's clear-done/outbox verdict all present — Phase 8 changes no API
-surface); the spec's §14 marked COMPLETE with the Phase-8 row.
-
-**Next:** the plan is FINISHED. The one open item is the S259 finding — the
-fix prompt is in the final report (a micro-session: merge the tag outcome
-into state + the e2e pin; board + project pages both; then the standard
-ladder + re-pin + release).
-
 ## Session S260 — Phase 8's follow-up: the S259 finding's micro-fix (2026-11-09)
 
 **The round:** the Phase-8 row's named follow-up — the micro-session S259's
@@ -338,3 +233,69 @@ seed → probe → purge, 0 users / 0 orphan archives D1-verified; prod: probe
 with the test account, language restored, probe project trashed) and appends
 the verdict. Also: rotate/re-paste the block's second CF token (still failing
 verify), and note the rotate.mjs DEBT row for a future micro-fix session.
+
+## Session S263 — the S261/S262 follow-up: BOTH authed live legs RUN AND GREEN (2026-11-10)
+
+**The round:** the owner's follow-up with the credential gap finally closed —
+the block carried a genuine HIBANA-account CF token + the test account login.
+Objective verbatim from the prompt: run `scripts/live-s259-probe.mjs` against
+dev and prod expecting 58/58 each; dev seed → probe → purge with the 0-users /
+0-orphan-archives D1 verification; prod with the test account, language
+restored, probe project trashed. No code changes; failures would go to DEBT.md
+first. **Verdict: dev 58/58 + prod 58/58 — (B4) PASS both — drift NONE.**
+
+**1. The credential self-check (the prompt's own gate) — PASSED:** the CF
+token verifies ACTIVE and sees exactly ONE account, `Aliassadi@live.com's
+Account` (6ff25b58…), whose D1 list carries **pm-app-prod (d842fcb5-…) +
+pm-app-dev (80e02ce2-…)** — the exact UUIDs S262 recorded as the Hibana D1s
+(the Currena block's empty-list/7404 failure mode re-checked and ABSENT). D1
+REST read + write both proven live on pm-app-dev this session.
+
+**2. THE DEV LEG — seed → probe → purge → D1-verify, ALL GREEN:**
+`live-s259-devseed.mjs seed` (probe-s259-dev@hibana.local, the app's exact
+PBKDF2 shape) → **58/58 ALL GREEN incl. (B4) PASS** (the S260 tag-chip
+regression guard) — carriers (health ok / schema 66 / sw v465), the whole
+login → projects → detail → kanban → sprint journey, the Phase-3/4/5
+contracts, the {en,fa}×{light,dark} matrix + 390px legs, zero page/console
+errors → `purge` → D1 REST verified: **probe users 0 · orphan archives 0 ·
+users back to the 6 baseline** (projects 7, the pre-session count; the purge
+cascade removed the probe project whole).
+
+**3. THE PROD LEG — 58/58, with one honest ops incident (operator error,
+remediated + verified in-session):** the FIRST run was killed mid-journey at
+check 29 by the session's own `| head` output pipe (SIGPIPE) — the finally
+block never ran, leaving the account language flipped to `en` + one un-trashed
+probe project (b269a3c4…). Remediation, all through the app's REAL API (the
+probe's own mechanism — login → PATCH /api/settings → DELETE /api/projects/:id,
+no direct D1 writes): language restored to the account's ORIGINAL `fa` (the
+S256-supplement record: "the loop ends on 'fa' and prod is the owner's real
+account"), orphan project trashed — then the CLEAN re-run completed:
+**58/58 ALL GREEN incl. (B4) PASS**, the probe restoring the language to `fa`
+and trashing its own project in the finally block. Final state D1-verified:
+**lang_now fa · 0 alive probe projects · 0 orphan archives** (5 trashed
+S259-regression projects in total — 3 from earlier sessions + this session's
+two; trash is the designed flow, the 7-day cron purges).
+
+**4. Drift found: NONE.** No DEBT.md rows added (the 8 stand, incl. row 8);
+no code changes (runtime stays v0.4.1.52 @ ea549418; package untouched); the
+ladder not re-run (runtime bytes identical to S260's green ladder — the two
+live legs re-proved the behavior on the REAL deployed workers, which was
+exactly the slice S261/S262 could not reach). The counts stand CURRENT from
+S260: vitest 1003/1003 · i18n 1711/1711 · e2e 518/518 · sw hibana-v465 ·
+schema 66/0067.
+
+**5. Ritual notes:** DEBT row 8 (rotate.mjs §1-drop) stays QUEUED for a
+ladder-capable session per the prompt — this close rotated the §1 chain
+MANUALLY again (S259 dropped, S260 kept; the tool's same-version collision
+now LOAD-BEARING: all four chain blocks share v0.4.1.52 after this close, so
+the NEXT docs-only close without the fix would hit the bug). Healthcheck ping
+(via the REAL management-API per-check URL, the S253/S256 doctrine — the
+block's `…/hibana` slug path stays unused) + Telegram notify (owner chat)
+DELIVERED this time. No zip (docs-only round, no version bump). Mirrored to
+the sandbox worklog per Agents.md.
+
+**Next:** the queue is EMPTY — dogfood v0.4.1.52 + desktop v0.1.55. The one
+named follow-up is DEBT row 8's micro-fix session (the rotate.mjs one-liner +
+the fixture-chain verify + the ladder); a candidate hardening noted in chat:
+the probe could guard its cleanup on abnormal termination (this session's
+pipe-kill incident is the case study).
